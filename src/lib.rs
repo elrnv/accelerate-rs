@@ -93,7 +93,7 @@ impl SparseAttributes {
                     SparseTriangle::Lower.into(),
                     ffi::SparseOrdinary,
                     0,
-                    false,
+                    true, // Will cause memory leak if not handled carefully.
                 ),
                 __bindgen_padding_0: 0,
             },
@@ -109,6 +109,11 @@ impl SparseAttributes {
     }
     pub fn with_triangle(mut self, triangle: SparseTriangle) -> Self {
         self.attrs.set_triangle(triangle.into());
+        self
+    }
+    /// Tells Accelerate that the matrix is allocated by the user.
+    pub(crate) fn with_owned(mut self, owned: bool) -> Self {
+        self.attrs.set__allocatedBySparse(owned);
         self
     }
 }
@@ -251,12 +256,11 @@ macro_rules! impl_matrix {
         pub struct $mtx_rs<'a> {
             mtx: ffi::$mtx_ffi,
             phantom: PhantomData<&'a ()>,
-            owned: bool,
         }
 
         impl<'a> Drop for $mtx_rs<'a> {
             fn drop(&mut self) {
-                if self.owned {
+                if self.mtx.structure.attributes._allocatedBySparse() {
                     unsafe {
                         ffi::$cleanup_mtx(self.mtx);
                     }
@@ -286,14 +290,13 @@ macro_rules! impl_matrix {
                             num_cols,
                             block_count,
                             block_size,
-                            attributes.into(),
+                            attributes.with_owned(true).into(),
                             rows.as_ptr(),
                             cols.as_ptr(),
                             values.as_ptr(),
                         )
                     },
                     phantom: PhantomData,
-                    owned: true,
                 }
             }
         }
@@ -311,14 +314,15 @@ macro_rules! impl_matrix {
             ) -> Self {
                 Self {
                     mtx: ffi::$mtx_ffi {
+                        // The attributes will be changed to reflect that this matrix structure and
+                        // values are owned by the caller.
                         structure: SparseMatrixStructure::from_raw_parts(
-                            num_rows, num_cols, block_size, attributes, indices, offsets,
+                            num_rows, num_cols, block_size, attributes.with_owned(false), indices, offsets,
                         )
                         .into(),
                         data: values.as_mut_ptr(),
                     },
                     phantom: PhantomData,
-                    owned: false,
                 }
             }
 
@@ -554,7 +558,7 @@ impl<'a> SparseMatrixStructure<'a> {
                 columnCount: i32::try_from(num_cols).unwrap(),
                 columnStarts: offsets.as_mut_ptr(),
                 rowIndices: indices.as_mut_ptr(),
-                attributes: attributes.into(),
+                attributes: attributes.with_owned(false).into(),
                 blockSize: u8::try_from(block_size).unwrap(),
             },
             phantom: PhantomData,
