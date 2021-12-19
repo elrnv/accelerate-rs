@@ -8,7 +8,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 mod tests {
     use super::*;
     #[test]
-    fn solve() {
+    fn factor_and_solve() {
         let mut row_indices = vec![0, 1, 3, 1, 2, 3, 2, 3];
         let mut values = vec![10.0, 1.0, 2.5, 12.0, -0.3, 1.1, 9.5, 6.0];
         let mut column_starts = vec![0, 3, 6, 7, 8];

@@ -11,15 +11,12 @@ readme = "README.md"
 keywords = ["ffi", "iOS", "Accelerate", "Linear Algebra"]
 categories = ["os::macos-apis", "external-ffi-bindings"]
 edition = "2021"
-#links = "Accelerate"
+links = "Accelerate"
 
 [dependencies]
-#accelerate-src = "0.3"
-#core-foundation-sys = "0.8.2"
-#libc = "0.2.100"
 
-#[package.metadata.docs.rs]
-#targets = ["x86_64-apple-darwin", "aarch64-apple-ios"]
+[package.metadata.docs.rs]
+targets = ["x86_64-apple-darwin", "aarch64-apple-ios"]
 
 [build-dependencies]
 bindgen = "0.59"

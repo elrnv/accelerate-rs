@@ -1,8 +1,19 @@
 [package]
-name = "accelerate"
+name = "accelerate-framework"
 version = "0.1.0"
+authors = ["Egor Larionov <egor.larionov@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Apple `Accelerate.framework` Rust wrapper"
+repository = "https://github.com/elrnv/accelerate-framework"
+homepage = "https://lib.rs/crates/accelerate-framework"
+documentation = "https://docs.rs/elrnv/accelerate"
+readme = "README.md"
+keywords = ["Accelerate", "Linear Algebra"]
+categories = ["os::macos-apis", "external-ffi-bindings"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+accelerate-sys = { path = "accelerate-sys" }
+
+[package.metadata.docs.rs]
+targets = ["x86_64-apple-darwin", "aarch64-apple-ios"]
