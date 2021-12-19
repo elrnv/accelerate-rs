@@ -425,7 +425,7 @@ macro_rules! impl_matrix {
                 }
                 self.status()
             }
-            pub fn solve_in_place(self, mut xb: impl AsMut<[$t]>) -> SparseStatus {
+            pub fn solve_in_place(&self, mut xb: impl AsMut<[$t]>) -> SparseStatus {
                 let status = self.status();
                 if status != SparseStatus::Ok {
                     return status;
@@ -438,7 +438,7 @@ macro_rules! impl_matrix {
                 unsafe { ffi::$solve_in_place(self.fact, xb) }
                 self.status()
             }
-            pub fn solve(self, mut b: impl AsMut<[$t]>, mut x: impl AsMut<[$t]>) -> SparseStatus {
+            pub fn solve(&self, mut b: impl AsMut<[$t]>, mut x: impl AsMut<[$t]>) -> SparseStatus {
                 let status = self.status();
                 if status != SparseStatus::Ok {
                     return status;
