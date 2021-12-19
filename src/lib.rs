@@ -394,10 +394,14 @@ macro_rules! impl_matrix {
                 self.mtx.structure.into()
             }
         }
-        #[derive(Clone, Debug)]
+        #[derive(Debug)]
         pub struct $factorization {
             fact: ffi::$factorization_ffi,
         }
+
+        /// Factorization cannot be copied or cloned.
+        unsafe impl Send for $factorization {}
+
         impl From<ffi::$factorization_ffi> for $factorization {
             fn from(f: ffi::$factorization_ffi) -> $factorization {
                 $factorization {
