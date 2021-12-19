@@ -258,6 +258,9 @@ macro_rules! impl_matrix {
             phantom: PhantomData<&'a ()>,
         }
 
+        /// Matrix cannot be copied or cloned.
+        unsafe impl<'a> Send for $mtx_rs<'a> {}
+
         impl<'a> Drop for $mtx_rs<'a> {
             fn drop(&mut self) {
                 if self.mtx.structure.attributes._allocatedBySparse() {
@@ -506,6 +509,9 @@ pub struct SparseMatrixStructure<'a> {
     phantom: PhantomData<&'a ()>,
 }
 
+/// Matrix structure cannot be copied or cloned.
+unsafe impl<'a> Send for SparseMatrixStructure<'a> {}
+
 impl From<ffi::SparseMatrixStructure> for SparseMatrixStructure<'_> {
     fn from(s: ffi::SparseMatrixStructure) -> Self {
         SparseMatrixStructure {
@@ -588,6 +594,9 @@ impl<'a> SparseMatrixStructure<'a> {
 pub struct SparseSymbolicFactorization {
     factorization: ffi::SparseOpaqueSymbolicFactorization,
 }
+
+/// SparseSymbolicFactorization cannot be copied or cloned.
+unsafe impl Send for SparseSymbolicFactorization {}
 
 impl From<ffi::SparseOpaqueSymbolicFactorization> for SparseSymbolicFactorization {
     fn from(other: ffi::SparseOpaqueSymbolicFactorization) -> Self {
