@@ -382,6 +382,7 @@ macro_rules! impl_matrix {
                 }
                 .into()
             }
+            /// Returns a copy of this matrix structure without entries.
             pub fn structure(&self) -> SparseMatrixStructure {
                 self.mtx.structure.into()
             }
@@ -411,23 +412,37 @@ macro_rules! impl_matrix {
         }
 
         impl $factorization {
+            /// Returns the status of this factorization state.
+            pub fn status(&self) -> SparseStatus {
+                self.fact.status.into()
+            }
             /// Refactor the given matrix.
             ///
             /// The given matrix must have the exact same sparsity pattern as originally provided.
-            pub fn refactor(&mut self, mtx: &$mtx_rs) {
+            pub fn refactor(&mut self, mtx: &$mtx_rs) -> SparseStatus {
                 unsafe {
                     ffi::$refactor(mtx.mtx, &mut self.fact as *mut ffi::$factorization_ffi);
                 }
+                self.status()
             }
-            pub fn solve_in_place(self, mut xb: impl AsMut<[$t]>) {
+            pub fn solve_in_place(self, mut xb: impl AsMut<[$t]>) -> SparseStatus {
+                let status = self.status();
+                if status != SparseStatus::Ok {
+                    return status;
+                }
                 let xb = xb.as_mut();
                 let xb = ffi::$dense_vec {
                     count: i32::try_from(xb.len()).unwrap(),
                     data: xb.as_mut_ptr(),
                 };
                 unsafe { ffi::$solve_in_place(self.fact, xb) }
+                self.status()
             }
-            pub fn solve(self, mut b: impl AsMut<[$t]>, mut x: impl AsMut<[$t]>) {
+            pub fn solve(self, mut b: impl AsMut<[$t]>, mut x: impl AsMut<[$t]>) -> SparseStatus {
+                let status = self.status();
+                if status != SparseStatus::Ok {
+                    return status;
+                }
                 let b = b.as_mut();
                 let b = ffi::$dense_vec {
                     count: i32::try_from(b.len()).unwrap(),
@@ -439,6 +454,7 @@ macro_rules! impl_matrix {
                     data: x.as_mut_ptr(),
                 };
                 unsafe { ffi::$solve(self.fact, b, x) }
+                self.status()
             }
         }
     };
@@ -558,6 +574,7 @@ impl<'a> SparseMatrixStructure<'a> {
     pub fn offsets(&self) -> &[i64] {
         sparse_matrix_structure_offsets(&self.inner)
     }
+    /// Factors the matrix represented by this structure symbolically.
     pub fn symbolic_factor(self, ty: SparseFactorizationType) -> SparseSymbolicFactorization {
         unsafe { ffi::SparseFactorSymbolic(ty.into(), self.into()).into() }
     }
@@ -583,6 +600,10 @@ impl From<SparseSymbolicFactorization> for ffi::SparseOpaqueSymbolicFactorizatio
 }
 
 impl SparseSymbolicFactorization {
+    /// Returns the status of this factorization state.
+    pub fn status(&self) -> SparseStatus {
+        self.factorization.status.into()
+    }
     pub fn new(
         factorization_type: SparseFactorizationType,
         matrix_structure: SparseMatrixStructure,
