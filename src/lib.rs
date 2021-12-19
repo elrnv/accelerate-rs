@@ -245,7 +245,7 @@ macro_rules! impl_matrix {
     ($t:ident, $mtx_rs:ident, $mtx_ffi:ident, $convert:ident, $factor:ident,
      $factorization:ident, $factorization_ffi:ident, $factor_numeric:ident,
      $solve:ident, $solve_in_place:ident, $dense_vec:ident, $dense_mtx:ident,
-     $cleanup_mtx:ident, $cleanup_fact:ident) => {
+     $cleanup_mtx:ident, $cleanup_fact:ident, $refactor:ident $(,)?) => {
         /// A block CSC format sparse matrix.
         #[derive(Debug)]
         pub struct $mtx_rs<'a> {
@@ -411,6 +411,14 @@ macro_rules! impl_matrix {
         }
 
         impl $factorization {
+            /// Refactor the given matrix.
+            ///
+            /// The given matrix must have the exact same sparsity pattern as originally provided.
+            pub fn refactor(&mut self, mtx: &$mtx_rs) {
+                unsafe {
+                    ffi::$refactor(mtx.mtx, &mut self.fact as *mut ffi::$factorization_ffi);
+                }
+            }
             pub fn solve_in_place(self, mut xb: impl AsMut<[$t]>) {
                 let xb = xb.as_mut();
                 let xb = ffi::$dense_vec {
@@ -450,7 +458,8 @@ impl_matrix!(
     DenseVector_Float,
     DenseMatrix_Float,
     SparseCleanupSparseMatrix_Float,
-    SparseCleanupOpaqueNumeric_Float
+    SparseCleanupOpaqueNumeric_Float,
+    SparseRefactor_Float,
 );
 
 impl_matrix!(
@@ -467,7 +476,8 @@ impl_matrix!(
     DenseVector_Double,
     DenseMatrix_Double,
     SparseCleanupSparseMatrix_Double,
-    SparseCleanupOpaqueNumeric_Double
+    SparseCleanupOpaqueNumeric_Double,
+    SparseRefactor_Double,
 );
 
 #[derive(Debug)]

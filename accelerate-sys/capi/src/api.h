@@ -1,9 +1,12 @@
+/*
+ * The documentation in this file is taken from Apple's Sparse/Solve.h. It is reproduced here for
+ * convenience.
+ */
+
 #ifndef __ACCELERATE_SYS_C_API_H__
 #define __ACCELERATE_SYS_C_API_H__
 
-//#include <Sparse/Solve.h>
 #include <Accelerate/Accelerate.h>
- 
 
 #ifdef __cplusplus
 extern "C" {
@@ -786,6 +789,249 @@ SparseOpaqueSymbolicFactorization SparseFactorSymbolic(SparseFactorization_t typ
  *  @returns The requested symbolic factorization of Matrix.                  */
 SparseOpaqueSymbolicFactorization SparseFactorSymbolicOpt(SparseFactorization_t type,
   SparseMatrixStructure Matrix, SparseSymbolicFactorOptions sfoptions);
+
+/**** Symbolic Refactor Functions *********************************************/
+
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+ *  The same numerical factorization options will be used as in the original
+ *  construction of Factorization.
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.                     */
+void SparseRefactor_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization);
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+ *  The same numerical factorization options will be used as in the original
+ *  construction of Factorization.
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.                     */
+void SparseRefactor_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization);
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix, using different options.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.
+ *
+ *  @param nfoptions Numeric factor options, for example pivoting parameters. */
+void SparseRefactorOpt_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization,
+  SparseNumericFactorOptions nfoptions);
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix, using different options.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.
+ *
+ *  @param nfoptions Numeric factor options, for example pivoting parameters. */
+void SparseRefactorOpt_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization,
+  SparseNumericFactorOptions nfoptions);
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix, without any internal
+ *            allocations.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+ *  The same numerical factorization options will be used as in the original
+ *  construction of Factorization.
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that internal memory allocations may occur in the case of
+ *  pivoted factorizations that result in delayed pivots. If you require closer
+ *  control over memory allocations, supply a sfoptions.malloc() function that
+ *  implements the required behaviour, or use an alternative non-pivoted
+ *  factorization returns. Note that if sfoptions.malloc() returns NULL the
+ *  factorization will abort immediately.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.                     */
+void SparseRefactorWS_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization, void *workspace);
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix, without any internal
+ *            allocations.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+ *  The same numerical factorization options will be used as in the original
+ *  construction of Factorization.
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that internal memory allocations may occur in the case of
+ *  pivoted factorizations that result in delayed pivots. If you require closer
+ *  control over memory allocations, supply a sfoptions.malloc() function that
+ *  implements the required behaviour, or use an alternative non-pivoted
+ *  factorization returns. Note that if sfoptions.malloc() returns NULL the
+ *  factorization will abort immediately.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.                     */
+void SparseRefactorWS_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization, void *workspace);
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix, using updated options and
+ *            without any internal allocations.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that internal memory allocations may occur in the case of
+ *  pivoted factorizations that result in delayed pivots. If you require closer
+ *  control over memory allocations, supply a sfoptions.malloc() function that
+ *  implements the required behaviour, or use an alternative non-pivoted
+ *  factorization returns. Note that if sfoptions.malloc() returns NULL the
+ *  factorization will abort immediately.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.
+ *
+ *  @param nfoptions Numeric factor options, for example pivoting parameters.
+ *
+ *  @param workspace A pointer to a workspace of size at least
+ *         Factorization->symbolicFactorization.workspaceSize_Double bytes.
+ *         This memory must be 16-byte aligned (any allocation returned
+ *         by malloc() has this property).
+ *         This workspace may be reused or destroyed by the user as soon as the
+ *         function returns.                                                  */
+void SparseRefactorOptWS_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization,
+  SparseNumericFactorOptions nfoptions, void *workspace);
+
+/*! @abstract Reuses supplied factorization object's storage to compute a new
+ *            factorization of the supplied matrix, using updated options and
+ *            without any internal allocations.
+ *
+ *  @discussion Matrix must have the same non-zero structure as that used for
+ *  the original factorization.
+
+ *  This call provides very similar behavior to that which can be achieved by
+ *  reusing explicit storage supplied to SparseFactor() as the argument
+ *  factorStorage. However, in addition to providing a simplified call sequence,
+ *  this call can also reuse any additional storage allocated to accomodate
+ *  delayed pivots.
+ *  Note that internal memory allocations may occur in the case of
+ *  pivoted factorizations that result in delayed pivots. If you require closer
+ *  control over memory allocations, supply a sfoptions.malloc() function that
+ *  implements the required behaviour, or use an alternative non-pivoted
+ *  factorization returns. Note that if sfoptions.malloc() returns NULL the
+ *  factorization will abort immediately.
+ *  Note that if the reference count of the underlying object is not
+ *  exactly one (i.e. if there are any implict copies as a result of calls to
+ *  SparseGetTranspose() or SparseCreateSubfactor() that have not been destroyed
+ *  through a call to SparseCleanup()), then new storage will be allocated
+ *  regardless.
+ *
+ *  @param Matrix The matrix to be factorized.
+ *
+ *  @param Factorization The factorization to be updated.
+ *
+ *  @param nfoptions Numeric factor options, for example pivoting parameters.
+ *
+ *  @param workspace A pointer to a workspace of size at least
+ *         Factorization->symbolicFactorization.workspaceSize_Float bytes.
+ *         This memory must be 16-byte aligned (any allocation returned
+ *         by malloc() has this property).
+ *         This workspace may be reused or destroyed by the user as soon as the
+ *         function returns.                                                  */
+void SparseRefactorOptWS_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization,
+  SparseNumericFactorOptions nfoptions, void *workspace);
 
 /**** Cleaning up resources ***************************************************/
 

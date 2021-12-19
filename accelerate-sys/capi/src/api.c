@@ -176,6 +176,52 @@ SparseOpaqueSymbolicFactorization SparseFactorSymbolicOpt(SparseFactorization_t 
     return SparseFactor(type, Matrix, sfoptions);
 }
 
+/**** Symbolic Refactor Functions *********************************************/
+
+void SparseRefactor_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization) { 
+    SparseRefactor(Matrix, Factorization);
+}
+
+void SparseRefactor_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization) { 
+    SparseRefactor(Matrix, Factorization);
+}
+
+void SparseRefactorOpt_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization,
+  SparseNumericFactorOptions nfoptions) { 
+    SparseRefactor(Matrix, Factorization, nfoptions);
+}
+
+void SparseRefactorOpt_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization,
+  SparseNumericFactorOptions nfoptions) { 
+    SparseRefactor(Matrix, Factorization, nfoptions);
+}
+
+void SparseRefactorWS_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization, void *workspace) { 
+    SparseRefactor(Matrix, Factorization, workspace);
+}
+
+void SparseRefactorWS_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization, void *workspace){ 
+    SparseRefactor(Matrix, Factorization, workspace);
+}
+
+void SparseRefactorOptWS_Double(SparseMatrix_Double Matrix,
+  SparseOpaqueFactorization_Double *Factorization,
+  SparseNumericFactorOptions nfoptions, void *workspace){ 
+    SparseRefactor(Matrix, Factorization, nfoptions, workspace);
+}
+
+void SparseRefactorOptWS_Float(SparseMatrix_Float Matrix,
+  SparseOpaqueFactorization_Float *Factorization,
+  SparseNumericFactorOptions nfoptions, void *workspace) {
+    SparseRefactor(Matrix, Factorization, nfoptions, workspace);
+}
+
 /**** Cleaning up resources ***************************************************/
 
 void SparseCleanupOpaqueSymbolic(SparseOpaqueSymbolicFactorization toFree) {
