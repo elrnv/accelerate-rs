@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
 
 use accelerate_sys as ffi;
 
@@ -250,7 +249,7 @@ macro_rules! impl_matrix {
         /// A block CSC format sparse matrix.
         #[derive(Debug)]
         pub struct $mtx_rs<'a> {
-            mtx: ManuallyDrop<ffi::$mtx_ffi>,
+            mtx: ffi::$mtx_ffi,
             phantom: PhantomData<&'a ()>,
             owned: bool,
         }
@@ -259,8 +258,7 @@ macro_rules! impl_matrix {
             fn drop(&mut self) {
                 if self.owned {
                     unsafe {
-                        ffi::$cleanup_mtx(ManuallyDrop::take(&mut self.mtx));
-                        ManuallyDrop::drop(&mut self.mtx);
+                        ffi::$cleanup_mtx(self.mtx);
                     }
                 }
             }
@@ -282,7 +280,7 @@ macro_rules! impl_matrix {
                 let block_count = i64::try_from(values.len() / block_size as usize).unwrap();
 
                 $mtx_rs {
-                    mtx: ManuallyDrop::new(unsafe {
+                    mtx: unsafe {
                         ffi::$convert(
                             num_rows,
                             num_cols,
@@ -293,7 +291,7 @@ macro_rules! impl_matrix {
                             cols.as_ptr(),
                             values.as_ptr(),
                         )
-                    }),
+                    },
                     phantom: PhantomData,
                     owned: true,
                 }
@@ -312,13 +310,13 @@ macro_rules! impl_matrix {
                 values: &mut [$t],
             ) -> Self {
                 Self {
-                    mtx: ManuallyDrop::new(ffi::$mtx_ffi {
+                    mtx: ffi::$mtx_ffi {
                         structure: SparseMatrixStructure::from_raw_parts(
                             num_rows, num_cols, block_size, attributes, indices, offsets,
                         )
                         .into(),
                         data: values.as_mut_ptr(),
-                    }),
+                    },
                     phantom: PhantomData,
                     owned: false,
                 }
@@ -361,23 +359,25 @@ macro_rules! impl_matrix {
             pub fn offsets(&self) -> &[i64] {
                 sparse_matrix_structure_offsets(&self.mtx.structure)
             }
-            pub fn factor(self, factorization_type: SparseFactorizationType) -> $factorization {
+            /// Factor this matrix according to the given factorization type.
+            pub fn factor(&self, factorization_type: SparseFactorizationType) -> $factorization {
                 unsafe {
                     ffi::$factor(
                         factorization_type.into(),
-                        ManuallyDrop::into_inner(self.mtx),
+                        self.mtx,
                     )
                 }
                 .into()
             }
+            /// Factor this matrix using the given symbolic factorization.
             pub fn factor_with(
-                self,
+                &self,
                 factorization: &SparseSymbolicFactorization,
             ) -> $factorization {
                 unsafe {
                     ffi::$factor_numeric(
                         factorization.factorization.clone(),
-                        ManuallyDrop::into_inner(self.mtx),
+                        self.mtx,
                     )
                 }
                 .into()
@@ -388,25 +388,24 @@ macro_rules! impl_matrix {
         }
         #[derive(Clone, Debug)]
         pub struct $factorization {
-            fact: ManuallyDrop<ffi::$factorization_ffi>,
+            fact: ffi::$factorization_ffi,
         }
         impl From<ffi::$factorization_ffi> for $factorization {
             fn from(f: ffi::$factorization_ffi) -> $factorization {
                 $factorization {
-                    fact: ManuallyDrop::new(f),
+                    fact: f,
                 }
             }
         }
         impl From<$factorization> for ffi::$factorization_ffi {
             fn from(f: $factorization) -> ffi::$factorization_ffi {
-                ManuallyDrop::into_inner(f.fact)
+                f.fact
             }
         }
         impl Drop for $factorization {
             fn drop(&mut self) {
                 unsafe {
-                    ffi::$cleanup_fact(ManuallyDrop::take(&mut self.fact));
-                    ManuallyDrop::drop(&mut self.fact);
+                    ffi::$cleanup_fact(self.fact);
                 }
             }
         }
@@ -418,7 +417,7 @@ macro_rules! impl_matrix {
                     count: i32::try_from(xb.len()).unwrap(),
                     data: xb.as_mut_ptr(),
                 };
-                unsafe { ffi::$solve_in_place(ManuallyDrop::into_inner(self.fact), xb) }
+                unsafe { ffi::$solve_in_place(self.fact, xb) }
             }
             pub fn solve(self, mut b: impl AsMut<[$t]>, mut x: impl AsMut<[$t]>) {
                 let b = b.as_mut();
@@ -431,7 +430,7 @@ macro_rules! impl_matrix {
                     count: i32::try_from(x.len()).unwrap(),
                     data: x.as_mut_ptr(),
                 };
-                unsafe { ffi::$solve(ManuallyDrop::into_inner(self.fact), b, x) }
+                unsafe { ffi::$solve(self.fact, b, x) }
             }
         }
     };
@@ -689,6 +688,15 @@ mod tests {
         let exp_sol1 = vec![4.0, 8.0, 12.0];
 
         for (actual, expected) in b1_values.iter().zip(exp_sol1.iter()) {
+            assert_eq!(*actual, *expected);
+        }
+
+        // Factorize _A0_ again using the symbolic factorization.
+        // This checks that a0 hasn't somehow been compromized with the previous factorization.
+        let factorization0 = a0.factor_with(&symbolic_factorization);
+        let mut b0_values = vec![30.0f32, 35.0, 100.0];
+        factorization0.solve_in_place(&mut b0_values);
+        for (actual, expected) in b0_values.iter().zip(exp_sol0.iter()) {
             assert_eq!(*actual, *expected);
         }
     }
