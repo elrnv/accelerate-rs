@@ -22,8 +22,12 @@ impl From<ffi::SparseTriangle_t> for SparseTriangle {
 impl From<SparseTriangle> for ffi::SparseTriangle_t {
     fn from(st: SparseTriangle) -> Self {
         match st {
-            SparseTriangle::Upper => ffi::SparseTriangle_SparseUpperTriangle as ffi::SparseTriangle_t,
-            SparseTriangle::Lower => ffi::SparseTriangle_SparseLowerTriangle as ffi::SparseTriangle_t,
+            SparseTriangle::Upper => {
+                ffi::SparseTriangle_SparseUpperTriangle as ffi::SparseTriangle_t
+            }
+            SparseTriangle::Lower => {
+                ffi::SparseTriangle_SparseLowerTriangle as ffi::SparseTriangle_t
+            }
         }
     }
 }
@@ -66,9 +70,7 @@ pub struct SparseAttributes {
 
 impl From<ffi::SparseAttributes_t> for SparseAttributes {
     fn from(attrs: ffi::SparseAttributes_t) -> Self {
-        Self {
-            attrs,
-        }
+        Self { attrs }
     }
 }
 
@@ -77,7 +79,6 @@ impl From<SparseAttributes> for ffi::SparseAttributes_t {
         attrs.attrs
     }
 }
-
 
 impl SparseAttributes {
     /// Constructs default attributes.
@@ -92,7 +93,7 @@ impl SparseAttributes {
                     SparseTriangle::Lower.into(),
                     ffi::SparseOrdinary,
                     0,
-                    false
+                    false,
                 ),
                 __bindgen_padding_0: 0,
             },
@@ -141,12 +142,24 @@ impl From<ffi::SparseFactorization_t> for SparseFactorizationType {
 impl From<SparseFactorizationType> for ffi::SparseFactorization_t {
     fn from(st: SparseFactorizationType) -> Self {
         match st {
-            SparseFactorizationType::Cholesky => ffi::SparseFactorizationCholesky as ffi::SparseFactorization_t,
-            SparseFactorizationType::CholeskyAtA => ffi::SparseFactorizationCholeskyAtA as ffi::SparseFactorization_t,
-            SparseFactorizationType::LDLT => ffi::SparseFactorizationLDLT as ffi::SparseFactorization_t,
-            SparseFactorizationType::LDLTUnpivoted => ffi::SparseFactorizationLDLTUnpivoted as ffi::SparseFactorization_t,
-            SparseFactorizationType::LDLTSBK => ffi::SparseFactorizationLDLTSBK as ffi::SparseFactorization_t,
-            SparseFactorizationType::LDLTTPP => ffi::SparseFactorizationLDLTTPP as ffi::SparseFactorization_t,
+            SparseFactorizationType::Cholesky => {
+                ffi::SparseFactorizationCholesky as ffi::SparseFactorization_t
+            }
+            SparseFactorizationType::CholeskyAtA => {
+                ffi::SparseFactorizationCholeskyAtA as ffi::SparseFactorization_t
+            }
+            SparseFactorizationType::LDLT => {
+                ffi::SparseFactorizationLDLT as ffi::SparseFactorization_t
+            }
+            SparseFactorizationType::LDLTUnpivoted => {
+                ffi::SparseFactorizationLDLTUnpivoted as ffi::SparseFactorization_t
+            }
+            SparseFactorizationType::LDLTSBK => {
+                ffi::SparseFactorizationLDLTSBK as ffi::SparseFactorization_t
+            }
+            SparseFactorizationType::LDLTTPP => {
+                ffi::SparseFactorizationLDLTTPP as ffi::SparseFactorization_t
+            }
             SparseFactorizationType::QR => ffi::SparseFactorizationQR as ffi::SparseFactorization_t,
         }
     }
@@ -204,12 +217,12 @@ pub enum SparseStatus {
 impl From<ffi::SparseStatus_t> for SparseStatus {
     fn from(st: ffi::SparseStatus_t) -> Self {
         match st {
-            ffi::SparseStatusOK                 => SparseStatus::Ok                 ,
-            ffi::SparseFactorizationFailed=> SparseStatus::FactorizationFailed,
-            ffi::SparseMatrixIsSingular   => SparseStatus::MatrixIsSingular   ,
-            ffi::SparseInternalError      => SparseStatus::InternalError      ,
-            ffi::SparseParameterError     => SparseStatus::ParameterError     ,
-            ffi::SparseStatusReleased           => SparseStatus::Released           ,
+            ffi::SparseStatusOK => SparseStatus::Ok,
+            ffi::SparseFactorizationFailed => SparseStatus::FactorizationFailed,
+            ffi::SparseMatrixIsSingular => SparseStatus::MatrixIsSingular,
+            ffi::SparseInternalError => SparseStatus::InternalError,
+            ffi::SparseParameterError => SparseStatus::ParameterError,
+            ffi::SparseStatusReleased => SparseStatus::Released,
             _ => panic!("Invalid factorization type"),
         }
     }
@@ -218,12 +231,12 @@ impl From<ffi::SparseStatus_t> for SparseStatus {
 impl From<SparseStatus> for ffi::SparseStatus_t {
     fn from(st: SparseStatus) -> Self {
         match st {
-            SparseStatus::Ok                  => ffi::SparseStatusOK                 ,
+            SparseStatus::Ok => ffi::SparseStatusOK,
             SparseStatus::FactorizationFailed => ffi::SparseFactorizationFailed,
-            SparseStatus::MatrixIsSingular    => ffi::SparseMatrixIsSingular   ,
-            SparseStatus::InternalError       => ffi::SparseInternalError      ,
-            SparseStatus::ParameterError      => ffi::SparseParameterError     ,
-            SparseStatus::Released            => ffi::SparseStatusReleased           ,
+            SparseStatus::MatrixIsSingular => ffi::SparseMatrixIsSingular,
+            SparseStatus::InternalError => ffi::SparseInternalError,
+            SparseStatus::ParameterError => ffi::SparseParameterError,
+            SparseStatus::Released => ffi::SparseStatusReleased,
         }
     }
 }
@@ -233,6 +246,7 @@ macro_rules! impl_matrix {
      $factorization:ident, $factorization_ffi:ident, $factor_numeric:ident,
      $solve:ident, $solve_in_place:ident, $dense_vec:ident, $dense_mtx:ident,
      $cleanup_mtx:ident, $cleanup_fact:ident) => {
+        /// A block CSC format sparse matrix.
         #[derive(Debug)]
         pub struct $mtx_rs {
             mtx: ManuallyDrop<ffi::$mtx_ffi>,
@@ -263,23 +277,77 @@ macro_rules! impl_matrix {
                 let block_count = i64::try_from(values.len() / block_size as usize).unwrap();
 
                 $mtx_rs {
-                    mtx: ManuallyDrop::new(unsafe { ffi::$convert(
-                        num_rows,
-                        num_cols,
-                        block_count,
-                        block_size,
-                        attributes.into(),
-                        rows.as_ptr(),
-                        cols.as_ptr(),
-                        values.as_ptr(),
-                    ) }),
+                    mtx: ManuallyDrop::new(unsafe {
+                        ffi::$convert(
+                            num_rows,
+                            num_cols,
+                            block_count,
+                            block_size,
+                            attributes.into(),
+                            rows.as_ptr(),
+                            cols.as_ptr(),
+                            values.as_ptr(),
+                        )
+                    }),
                 }
             }
-            pub fn factor(self, factorization_type: SparseFactorizationType) -> $factorization {
-                unsafe { ffi::$factor(factorization_type.into(), ManuallyDrop::into_inner(self.mtx)) }.into()
+            /// A mutable slice of all structurally non-zero entries in this matrix.
+            ///
+            /// This can be useful for updating the values of the matrix without changing the
+            /// sparsity pattern.
+            pub fn data_mut(&mut self) -> &mut [$t] {
+                let num_cols = usize::try_from(self.mtx.structure.columnCount).unwrap();
+                unsafe {
+                    std::slice::from_raw_parts_mut(
+                        self.mtx.data,
+                        usize::try_from(*self.mtx.structure.columnStarts.add(num_cols)).unwrap(),
+                    )
+                }
             }
-            pub fn factor_with(self, factorization: &SparseSymbolicFactorization) -> $factorization {
-                unsafe { ffi::$factor_numeric(factorization.factorization.clone(), ManuallyDrop::into_inner(self.mtx)) }.into()
+            /// A slice of all structurally non-zero entries in this matrix.
+            pub fn data(&self) -> &[$t] {
+                let num_cols = usize::try_from(self.mtx.structure.columnCount).unwrap();
+                unsafe {
+                    std::slice::from_raw_parts(
+                        self.mtx.data,
+                        usize::try_from(*self.mtx.structure.columnStarts.add(num_cols)).unwrap(),
+                    )
+                }
+            }
+            /// A slice of all row indices represented in this BCSC matrix.
+            ///
+            /// Each index corresponds to an structurally non-zero entry in the matrix.
+            pub fn indices(&self) -> &[i32] {
+                sparse_matrix_structure_indices(&self.mtx.structure)
+            }
+            /// A slice of all column offsets represented in this BCSC matrix.
+            ///
+            /// Each offset (except for one) corresponds to a column in the matrix. The last
+            /// offset corresponds to the total number of structural non-zeros in the
+            /// matrix.
+            pub fn offsets(&self) -> &[i64] {
+                sparse_matrix_structure_offsets(&self.mtx.structure)
+            }
+            pub fn factor(self, factorization_type: SparseFactorizationType) -> $factorization {
+                unsafe {
+                    ffi::$factor(
+                        factorization_type.into(),
+                        ManuallyDrop::into_inner(self.mtx),
+                    )
+                }
+                .into()
+            }
+            pub fn factor_with(
+                self,
+                factorization: &SparseSymbolicFactorization,
+            ) -> $factorization {
+                unsafe {
+                    ffi::$factor_numeric(
+                        factorization.factorization.clone(),
+                        ManuallyDrop::into_inner(self.mtx),
+                    )
+                }
+                .into()
             }
             pub fn structure(&self) -> SparseMatrixStructure {
                 self.mtx.structure.into()
@@ -291,7 +359,9 @@ macro_rules! impl_matrix {
         }
         impl From<ffi::$factorization_ffi> for $factorization {
             fn from(f: ffi::$factorization_ffi) -> $factorization {
-                $factorization { fact: ManuallyDrop::new(f) }
+                $factorization {
+                    fact: ManuallyDrop::new(f),
+                }
             }
         }
         impl From<$factorization> for ffi::$factorization_ffi {
@@ -309,19 +379,6 @@ macro_rules! impl_matrix {
         }
 
         impl $factorization {
-            //pub(crate) fn empty() -> Self {
-            //    Self {
-            //        fact: ManuallyDrop::new(ffi::$factorization_ffi {
-            //            status: SparseStatus::Ok.into(),
-            //            attributes: SparseAttributes::new().into(),
-            //            symbolicFactorization: SparseSymbolicFactorization::empty().into(),
-            //            userFactorStorage: false,
-            //            numericFactorization: std::ptr::null_mut(),
-            //            solveWorkspaceRequiredStatic: 0,
-            //            solveWorkspaceRequiredPerRHS: 0,
-            //        })
-            //    }
-            //}
             pub fn solve_in_place(self, mut xb: impl AsMut<[$t]>) {
                 let xb = xb.as_mut();
                 let xb = ffi::$dense_vec {
@@ -397,20 +454,43 @@ impl From<SparseMatrixStructure> for ffi::SparseMatrixStructure {
     }
 }
 
+/// A slice of all row indices represented in this BCSC matrix.
+///
+/// Each index corresponds to an structurally non-zero entry in the matrix.
+fn sparse_matrix_structure_indices(structure: &ffi::SparseMatrixStructure) -> &[i32] {
+    let num_cols = usize::try_from(structure.columnCount).unwrap();
+    unsafe {
+        std::slice::from_raw_parts(
+            structure.rowIndices,
+            usize::try_from(*structure.columnStarts.add(num_cols)).unwrap(),
+        )
+    }
+}
+/// A slice of all column offsets represented in this BCSC matrix.
+///
+/// Each offset (except for one) corresponds to a column in the matrix. The last
+/// offset corresponds to the total number of structural non-zeros in the
+/// matrix.
+fn sparse_matrix_structure_offsets(structure: &ffi::SparseMatrixStructure) -> &[i64] {
+    let num_cols = usize::try_from(structure.columnCount).unwrap();
+    unsafe { std::slice::from_raw_parts(structure.columnStarts, num_cols + 1) }
+}
+
 impl SparseMatrixStructure {
-    ///// Constructs an empty matrix structure.
-    //pub(crate) fn empty() -> Self {
-    //    Self {
-    //        inner: ffi::SparseMatrixStructure {
-    //            rowCount: 0,
-    //            columnCount: 0,
-    //            columnStarts: std::ptr::null_mut(),
-    //            rowIndices: std::ptr::null_mut(),
-    //            attributes: SparseAttributes::new().into(),
-    //            blockSize: 0
-    //        }
-    //    }
-    //}
+    /// A slice of all row indices represented in this BCSC matrix.
+    ///
+    /// Each index corresponds to an structurally non-zero entry in the matrix.
+    pub fn indices(&self) -> &[i32] {
+        sparse_matrix_structure_indices(&self.inner)
+    }
+    /// A slice of all column offsets represented in this BCSC matrix.
+    ///
+    /// Each offset (except for one) corresponds to a column in the matrix. The last
+    /// offset corresponds to the total number of structural non-zeros in the
+    /// matrix.
+    pub fn offsets(&self) -> &[i64] {
+        sparse_matrix_structure_offsets(&self.inner)
+    }
     pub fn symbolic_factor(self, ty: SparseFactorizationType) -> SparseSymbolicFactorization {
         unsafe { ffi::SparseFactorSymbolic(ty.into(), self.into()).into() }
     }
@@ -424,7 +504,7 @@ pub struct SparseSymbolicFactorization {
 impl From<ffi::SparseOpaqueSymbolicFactorization> for SparseSymbolicFactorization {
     fn from(other: ffi::SparseOpaqueSymbolicFactorization) -> Self {
         Self {
-            factorization: other
+            factorization: other,
         }
     }
 }
@@ -436,23 +516,6 @@ impl From<SparseSymbolicFactorization> for ffi::SparseOpaqueSymbolicFactorizatio
 }
 
 impl SparseSymbolicFactorization {
-    //pub(crate) fn empty() -> Self {
-    //    Self {
-    //        factorization: ffi::SparseOpaqueSymbolicFactorization {
-    //            status: SparseStatus::Ok.into(),
-    //            rowCount: 0,
-    //            columnCount: 0,
-    //            attributes: SparseAttributes::new().into(),
-    //            blockSize: 0,
-    //            type_: SparseFactorizationType::Cholesky.into(),
-    //            factorization: std::ptr::null_mut(),
-    //            workspaceSize_Float: 0,
-    //            workspaceSize_Double: 0,
-    //            factorSize_Float:0,
-    //            factorSize_Double:0,
-    //        }
-    //    }
-    //}
     pub fn new(
         factorization_type: SparseFactorizationType,
         matrix_structure: SparseMatrixStructure,
@@ -481,6 +544,9 @@ mod tests {
             &col_indices,
             &a0_values,
         );
+        assert_eq!(a0.data(), &[20.0f32, 50.0, 10.0, 5.0][..]);
+        assert_eq!(a0.indices(), &[1, 2, 0, 1][..]);
+        assert_eq!(a0.offsets(), &[0, 1, 2, 4][..]);
 
         // Create the double-precision coefficient matrix _A1_.
         let a1_values = vec![5.0f64, 10.0, 2.5, 25.0];
@@ -493,6 +559,9 @@ mod tests {
             &col_indices,
             &a1_values,
         );
+        assert_eq!(a1.data(), &[10.0f64, 25.0, 5.0, 2.5][..]);
+        assert_eq!(a1.indices(), &[1, 2, 0, 1][..]);
+        assert_eq!(a1.offsets(), &[0, 1, 2, 4][..]);
 
         // Compute the symbolic factorization from the structure of either coefficient matrix.
         let structure = a0.structure();
@@ -503,7 +572,7 @@ mod tests {
 
         // Solve _A0 · x = b0_ in place.
         let mut b0_values = vec![30.0f32, 35.0, 100.0];
-        factorization0.solve_in_place( &mut b0_values);
+        factorization0.solve_in_place(&mut b0_values);
 
         // Expected solution
         let exp_sol0 = vec![1.0, 2.0, 3.0];
