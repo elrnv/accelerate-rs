@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 
 use accelerate_sys as ffi;
@@ -248,20 +249,24 @@ macro_rules! impl_matrix {
      $cleanup_mtx:ident, $cleanup_fact:ident) => {
         /// A block CSC format sparse matrix.
         #[derive(Debug)]
-        pub struct $mtx_rs {
+        pub struct $mtx_rs<'a> {
             mtx: ManuallyDrop<ffi::$mtx_ffi>,
+            phantom: PhantomData<&'a ()>,
+            owned: bool,
         }
 
-        impl Drop for $mtx_rs {
+        impl<'a> Drop for $mtx_rs<'a> {
             fn drop(&mut self) {
-                unsafe {
-                    ffi::$cleanup_mtx(ManuallyDrop::take(&mut self.mtx));
-                    ManuallyDrop::drop(&mut self.mtx);
+                if self.owned {
+                    unsafe {
+                        ffi::$cleanup_mtx(ManuallyDrop::take(&mut self.mtx));
+                        ManuallyDrop::drop(&mut self.mtx);
+                    }
                 }
             }
         }
 
-        impl $mtx_rs {
+        impl $mtx_rs<'static> {
             /// Constructs a sparse matrix from data arrays.
             ///
             /// Out-of-range entries are dropped and duplicates are summed.
@@ -289,8 +294,36 @@ macro_rules! impl_matrix {
                             values.as_ptr(),
                         )
                     }),
+                    phantom: PhantomData,
+                    owned: true,
                 }
             }
+        }
+
+        impl<'a> $mtx_rs<'a> {
+            /// Constructs a sparse BCSC matrix from the given raw indices, offsets and values.
+            pub fn from_raw_parts(
+                num_rows: usize,
+                num_cols: usize,
+                block_size: usize,
+                attributes: SparseAttributes,
+                indices: &mut [i32],
+                offsets: &mut [i64],
+                values: &mut [$t],
+            ) -> Self {
+                Self {
+                    mtx: ManuallyDrop::new(ffi::$mtx_ffi {
+                        structure: SparseMatrixStructure::from_raw_parts(
+                            num_rows, num_cols, block_size, attributes, indices, offsets,
+                        )
+                        .into(),
+                        data: values.as_mut_ptr(),
+                    }),
+                    phantom: PhantomData,
+                    owned: false,
+                }
+            }
+
             /// A mutable slice of all structurally non-zero entries in this matrix.
             ///
             /// This can be useful for updating the values of the matrix without changing the
@@ -439,16 +472,20 @@ impl_matrix!(
 );
 
 #[derive(Debug)]
-pub struct SparseMatrixStructure {
+pub struct SparseMatrixStructure<'a> {
     inner: ffi::SparseMatrixStructure,
+    phantom: PhantomData<&'a ()>,
 }
 
-impl From<ffi::SparseMatrixStructure> for SparseMatrixStructure {
+impl From<ffi::SparseMatrixStructure> for SparseMatrixStructure<'_> {
     fn from(s: ffi::SparseMatrixStructure) -> Self {
-        SparseMatrixStructure { inner: s }
+        SparseMatrixStructure {
+            inner: s,
+            phantom: PhantomData,
+        }
     }
 }
-impl From<SparseMatrixStructure> for ffi::SparseMatrixStructure {
+impl From<SparseMatrixStructure<'_>> for ffi::SparseMatrixStructure {
     fn from(structure: SparseMatrixStructure) -> Self {
         structure.inner
     }
@@ -476,7 +513,28 @@ fn sparse_matrix_structure_offsets(structure: &ffi::SparseMatrixStructure) -> &[
     unsafe { std::slice::from_raw_parts(structure.columnStarts, num_cols + 1) }
 }
 
-impl SparseMatrixStructure {
+impl<'a> SparseMatrixStructure<'a> {
+    /// Create a sparse BCSC matrix structure from raw indices and offsets.
+    pub fn from_raw_parts(
+        num_rows: usize,
+        num_cols: usize,
+        block_size: usize,
+        attributes: SparseAttributes,
+        indices: &mut [i32],
+        offsets: &mut [i64],
+    ) -> Self {
+        Self {
+            inner: ffi::SparseMatrixStructure {
+                rowCount: i32::try_from(num_rows).unwrap(),
+                columnCount: i32::try_from(num_cols).unwrap(),
+                columnStarts: offsets.as_mut_ptr(),
+                rowIndices: indices.as_mut_ptr(),
+                attributes: attributes.into(),
+                blockSize: u8::try_from(block_size).unwrap(),
+            },
+            phantom: PhantomData,
+        }
+    }
     /// A slice of all row indices represented in this BCSC matrix.
     ///
     /// Each index corresponds to an structurally non-zero entry in the matrix.
@@ -527,6 +585,45 @@ impl SparseSymbolicFactorization {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn from_raw() {
+        // Define the sparsity pattern for `a`.
+        let row_indices = vec![0, 1, 1, 2];
+        let col_indices = vec![2, 0, 2, 1];
+
+        let a_values = vec![10.0f32, 20.0, 5.0, 50.0];
+        let a = SparseMatrixF32::from_coordinate(
+            3,
+            3,
+            1,
+            SparseAttributes::new(),
+            &row_indices,
+            &col_indices,
+            &a_values,
+        );
+
+        let mut indices = vec![1, 2, 0, 1];
+        let mut offsets = vec![0, 1, 2, 4];
+        let mut data = vec![20.0f32, 50.0, 10.0, 5.0];
+        assert_eq!(a.data(), data.as_slice());
+        assert_eq!(a.indices(), indices.as_slice());
+        assert_eq!(a.offsets(), offsets.as_slice());
+
+        let a_raw = SparseMatrixF32::from_raw_parts(
+            3,
+            3,
+            1,
+            SparseAttributes::new(),
+            &mut indices,
+            &mut offsets,
+            &mut data,
+        );
+
+        assert_eq!(a_raw.data(), a.data());
+        assert_eq!(a_raw.indices(), a.indices());
+        assert_eq!(a_raw.offsets(), a.offsets());
+    }
+
     #[test]
     fn factor_and_solve() {
         // Define the sparsity pattern of matrices `A0` and `A1`.
