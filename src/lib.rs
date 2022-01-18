@@ -178,6 +178,11 @@ pub enum SparseOrder {
     Metis,
     COLAMD,
 }
+impl Default for SparseOrder {
+    fn default() -> Self {
+        SparseOrder::Default
+    }
+}
 impl From<ffi::SparseOrder_t> for SparseOrder {
     fn from(st: ffi::SparseOrder_t) -> Self {
         match st as u32 {
@@ -186,7 +191,7 @@ impl From<ffi::SparseOrder_t> for SparseOrder {
             ffi::SparseOrderAMD => SparseOrder::AMD,
             ffi::SparseOrderMetis => SparseOrder::Metis,
             ffi::SparseOrderCOLAMD => SparseOrder::COLAMD,
-            _ => panic!("Invalid factorization type"),
+            _ => panic!("Invalid sparse order"),
         }
     }
 }
@@ -199,6 +204,41 @@ impl From<SparseOrder> for ffi::SparseOrder_t {
             SparseOrder::AMD => ffi::SparseOrderAMD as ffi::SparseOrder_t,
             SparseOrder::Metis => ffi::SparseOrderMetis as ffi::SparseOrder_t,
             SparseOrder::COLAMD => ffi::SparseOrderCOLAMD as ffi::SparseOrder_t,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SparseScaling {
+    Default,
+    User,
+    EquilibriationInf,
+}
+
+impl Default for SparseScaling {
+    fn default() -> Self {
+        SparseScaling::Default
+    }
+}
+impl From<ffi::SparseScaling_t> for SparseScaling {
+    fn from(st: ffi::SparseScaling_t) -> Self {
+        match st as u32 {
+            ffi::SparseScalingDefault => SparseScaling::Default,
+            ffi::SparseScalingUser => SparseScaling::User,
+            ffi::SparseScalingEquilibriationInf => SparseScaling::EquilibriationInf,
+            _ => panic!("Invalid scaling type"),
+        }
+    }
+}
+
+impl From<SparseScaling> for ffi::SparseScaling_t {
+    fn from(st: SparseScaling) -> Self {
+        match st {
+            SparseScaling::Default => ffi::SparseScalingDefault as ffi::SparseScaling_t,
+            SparseScaling::User => ffi::SparseScalingUser as ffi::SparseScaling_t,
+            SparseScaling::EquilibriationInf => {
+                ffi::SparseScalingEquilibriationInf as ffi::SparseScaling_t
+            }
         }
     }
 }
@@ -228,7 +268,7 @@ impl From<ffi::SparseStatus_t> for SparseStatus {
             ffi::SparseInternalError => SparseStatus::InternalError,
             ffi::SparseParameterError => SparseStatus::ParameterError,
             ffi::SparseStatusReleased => SparseStatus::Released,
-            _ => panic!("Invalid factorization type"),
+            _ => panic!("Invalid status"),
         }
     }
 }
@@ -343,7 +383,7 @@ impl From<SparseFactorization<f64>> for ffi::SparseOpaqueFactorization_Double {
 }
 
 macro_rules! impl_matrix {
-    ($t:ident, $mtx:ident, $convert:ident, $factor:ident, $factor_numeric:ident, $cleanup:ident $(,)?) => {
+    ($t:ident, $mtx:ident, $convert:ident, $factor:ident, $factor_numeric:ident, $factor_numeric_opt:ident, $cleanup:ident $(,)?) => {
         impl SparseMatrix<'static, $t> {
             /// Constructs a sparse matrix from data arrays.
             ///
@@ -461,6 +501,21 @@ macro_rules! impl_matrix {
                 unsafe { ffi::$factor_numeric(factorization.factorization.clone(), self.mtx) }
                     .into()
             }
+            /// Factor this matrix using the given symbolic factorization and options.
+            pub fn factor_with_options(
+                &self,
+                factorization: &SparseSymbolicFactorization,
+                options: SparseNumericFactorOptions<'_, $t>,
+            ) -> SparseFactorization<$t> {
+                unsafe {
+                    ffi::$factor_numeric_opt(
+                        factorization.factorization.clone(),
+                        self.mtx,
+                        options.into(),
+                    )
+                }
+                .into()
+            }
             /// Returns a copy of this matrix structure without entries.
             pub fn structure(&self) -> SparseMatrixStructure {
                 self.mtx.structure.into()
@@ -471,7 +526,7 @@ macro_rules! impl_matrix {
 
 macro_rules! impl_factorization {
     ($t:ident, $solve:ident, $solve_in_place:ident, $dense_vec:ident, $dense_mtx:ident,
-     $cleanup:ident, $refactor:ident $(,)?) => {
+     $cleanup:ident, $refactor:ident, $refactor_opt:ident $(,)?) => {
         impl SparseFactorization<$t> {
             /// Returns the status of this factorization state.
             pub fn status(&self) -> SparseStatus {
@@ -485,6 +540,23 @@ macro_rules! impl_factorization {
                     ffi::$refactor(
                         mtx.mtx,
                         &mut self.fact as *mut <$t as SupportedScalar>::FFISparseFactorizationType,
+                    );
+                }
+                self.status()
+            }
+            /// Refactor the given matrix with the given options.
+            ///
+            /// The given matrix must have the exact same sparsity pattern as originally provided.
+            pub fn refactor_with_options<'a>(
+                &mut self,
+                mtx: &SparseMatrix<'a, $t>,
+                options: SparseNumericFactorOptions<'a, $t>,
+            ) -> SparseStatus {
+                unsafe {
+                    ffi::$refactor_opt(
+                        mtx.mtx,
+                        &mut self.fact as *mut <$t as SupportedScalar>::FFISparseFactorizationType,
+                        options.into(),
                     );
                 }
                 self.status()
@@ -532,6 +604,7 @@ impl_matrix!(
     SparseConvertFromCoordinate_Float,
     SparseFactor_Float,
     SparseFactorNumeric_Float,
+    SparseFactorNumericOpt_Float,
     SparseCleanupSparseMatrix_Float,
 );
 
@@ -541,6 +614,7 @@ impl_matrix!(
     SparseConvertFromCoordinate_Double,
     SparseFactor_Double,
     SparseFactorNumeric_Double,
+    SparseFactorNumericOpt_Double,
     SparseCleanupSparseMatrix_Double,
 );
 
@@ -552,6 +626,7 @@ impl_factorization!(
     DenseMatrix_Float,
     SparseCleanupOpaqueNumeric_Float,
     SparseRefactor_Float,
+    SparseRefactorOpt_Float,
 );
 
 impl_factorization!(
@@ -562,7 +637,79 @@ impl_factorization!(
     DenseMatrix_Double,
     SparseCleanupOpaqueNumeric_Double,
     SparseRefactor_Double,
+    SparseRefactorOpt_Double,
 );
+
+#[derive(Debug)]
+pub struct SparseSymbolicFactorOptions<'a> {
+    pub order_method: SparseOrder,
+    pub order: Option<&'a mut [i32]>,
+    pub ignore_rows_and_columns: Option<&'a mut [i32]>,
+}
+
+impl<'a> Default for SparseSymbolicFactorOptions<'a> {
+    fn default() -> Self {
+        SparseSymbolicFactorOptions {
+            order_method: SparseOrder::Default,
+            order: None,
+            ignore_rows_and_columns: None,
+        }
+    }
+}
+
+impl<'a> From<SparseSymbolicFactorOptions<'a>> for ffi::SparseSymbolicFactorOptions {
+    fn from(opts: SparseSymbolicFactorOptions<'a>) -> Self {
+        ffi::SparseSymbolicFactorOptions {
+            control: ffi::SparseDefaultControl,
+            orderMethod: opts.order_method.into(),
+            order: opts
+                .order
+                .map(|x| x.as_mut_ptr())
+                .unwrap_or(std::ptr::null_mut()),
+            ignoreRowsAndColumns: opts
+                .ignore_rows_and_columns
+                .map(|x| x.as_mut_ptr())
+                .unwrap_or(std::ptr::null_mut()),
+            malloc: None,
+            free: None,
+            reportError: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SparseNumericFactorOptions<'a, T> {
+    pub scaling_method: SparseScaling,
+    pub scaling: Option<&'a mut [T]>,
+    pub pivot_tolerance: f64,
+    pub zero_tolerance: f64,
+}
+
+impl<'a, T> Default for SparseNumericFactorOptions<'a, T> {
+    fn default() -> Self {
+        SparseNumericFactorOptions {
+            scaling_method: SparseScaling::default(),
+            scaling: None,
+            pivot_tolerance: 0.0,
+            zero_tolerance: 0.0,
+        }
+    }
+}
+
+impl<'a, T> From<SparseNumericFactorOptions<'a, T>> for ffi::SparseNumericFactorOptions {
+    fn from(opts: SparseNumericFactorOptions<'a, T>) -> Self {
+        ffi::SparseNumericFactorOptions {
+            control: ffi::SparseDefaultControl,
+            scalingMethod: opts.scaling_method.into(),
+            scaling: opts
+                .scaling
+                .map(|x| x.as_mut_ptr())
+                .unwrap_or(std::ptr::null_mut()) as *mut std::ffi::c_void,
+            pivotTolerance: opts.pivot_tolerance,
+            zeroTolerance: opts.zero_tolerance,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct SparseMatrixStructure<'a> {
@@ -649,6 +796,11 @@ impl<'a> SparseMatrixStructure<'a> {
     pub fn symbolic_factor(self, ty: SparseFactorizationType) -> SparseSymbolicFactorization {
         unsafe { ffi::SparseFactorSymbolic(ty.into(), self.into()).into() }
     }
+    // Currently opts cause memory issues. TODO: resolve this.
+    ///// Factors the matrix represented by this structure symbolically using the given options.
+    //pub fn symbolic_factor_with_options(self, ty: SparseFactorizationType, options: SparseSymbolicFactorOptions) -> SparseSymbolicFactorization {
+    //    unsafe { ffi::SparseFactorSymbolicOpt(ty.into(), self.into(), options.into()).into() }
+    //}
 }
 
 #[derive(Debug)]
@@ -957,8 +1109,40 @@ impl SparseIterativeMethod {
  * Solve functions
  */
 
+#[derive(Debug, Copy, Clone)]
+pub enum SparsePreconditioner {
+    None,
+    User,
+    Diagonal,
+    DiagScaling,
+}
+
+impl Default for SparsePreconditioner {
+    fn default() -> Self {
+        SparsePreconditioner::None
+    }
+}
+
+impl From<SparsePreconditioner> for ffi::SparsePreconditioner_t {
+    fn from(precond: SparsePreconditioner) -> Self {
+        (match precond {
+            SparsePreconditioner::None => ffi::SparsePreconditionerNone,
+            SparsePreconditioner::User => ffi::SparsePreconditionerUser,
+            SparsePreconditioner::Diagonal => ffi::SparsePreconditionerDiagonal,
+            SparsePreconditioner::DiagScaling => ffi::SparsePreconditionerDiagScaling,
+        }) as i32
+    }
+}
+
 pub trait IterativeSolve<T, M> {
     fn solve(&self, a: &M, b: impl AsMut<[T]>, x: impl AsMut<[T]>) -> SparseIterativeStatus;
+    fn solve_precond(
+        &self,
+        a: &M,
+        b: impl AsMut<[T]>,
+        x: impl AsMut<[T]>,
+        precond: SparsePreconditioner,
+    ) -> SparseIterativeStatus;
     fn solve_op(
         &self,
         op: impl Fn(bool, bool, &[T], &mut [T]),
@@ -968,7 +1152,7 @@ pub trait IterativeSolve<T, M> {
 }
 
 macro_rules! impl_iterative_solve {
-    ($t:ident, $opp:ident, $solve:ident, $solve_op:ident, $dense_vec:ident, $(,)?) => {
+    ($t:ident, $opp:ident, $solve:ident, $solve_op:ident, $solve_precond:ident, $dense_vec:ident, $(,)?) => {
         impl<'a> IterativeSolve<$t, SparseMatrix<'a, $t>> for SparseIterativeMethod {
             fn solve(
                 &self,
@@ -987,6 +1171,25 @@ macro_rules! impl_iterative_solve {
                     data: x.as_mut_ptr(),
                 };
                 unsafe { ffi::$solve(self.method, a.mtx, b, x) }.into()
+            }
+            fn solve_precond(
+                &self,
+                a: &SparseMatrix<'a, $t>,
+                mut b: impl AsMut<[$t]>,
+                mut x: impl AsMut<[$t]>,
+                precond: SparsePreconditioner,
+            ) -> SparseIterativeStatus {
+                let b = b.as_mut();
+                let b = ffi::$dense_vec {
+                    count: i32::try_from(b.len()).unwrap(),
+                    data: b.as_mut_ptr(),
+                };
+                let x = x.as_mut();
+                let x = ffi::$dense_vec {
+                    count: i32::try_from(x.len()).unwrap(),
+                    data: x.as_mut_ptr(),
+                };
+                unsafe { ffi::$solve_precond(self.method, a.mtx, b, x, precond.into()) }.into()
             }
             fn solve_op(
                 &self,
@@ -1028,6 +1231,7 @@ impl_iterative_solve!(
     ffi_oppf32,
     SparseSolveIterative_Float,
     SparseSolveIterativeOp_Float,
+    SparseSolveIterativePrecond_Float,
     DenseVector_Float,
 );
 impl_iterative_solve!(
@@ -1035,6 +1239,7 @@ impl_iterative_solve!(
     ffi_oppf64,
     SparseSolveIterative_Double,
     SparseSolveIterativeOp_Double,
+    SparseSolveIterativePrecond_Double,
     DenseVector_Double,
 );
 
