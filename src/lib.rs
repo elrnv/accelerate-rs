@@ -480,7 +480,7 @@ macro_rules! impl_factorization {
             /// Refactor the given matrix.
             ///
             /// The given matrix must have the exact same sparsity pattern as originally provided.
-            pub fn refactor<'a>(&mut self, mtx: SparseMatrix<'a, $t>) -> SparseStatus {
+            pub fn refactor<'a>(&mut self, mtx: &SparseMatrix<'a, $t>) -> SparseStatus {
                 unsafe {
                     ffi::$refactor(
                         mtx.mtx,
