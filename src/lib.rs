@@ -958,7 +958,7 @@ impl SparseIterativeMethod {
  */
 
 pub trait IterativeSolve<T, M> {
-    fn solve(&self, a: M, b: impl AsMut<[T]>, x: impl AsMut<[T]>) -> SparseIterativeStatus;
+    fn solve(&self, a: &M, b: impl AsMut<[T]>, x: impl AsMut<[T]>) -> SparseIterativeStatus;
     fn solve_op(
         &self,
         op: impl Fn(bool, bool, &[T], &mut [T]),
@@ -972,7 +972,7 @@ macro_rules! impl_iterative_solve {
         impl<'a> IterativeSolve<$t, SparseMatrix<'a, $t>> for SparseIterativeMethod {
             fn solve(
                 &self,
-                a: SparseMatrix<'a, $t>,
+                a: &SparseMatrix<'a, $t>,
                 mut b: impl AsMut<[$t]>,
                 mut x: impl AsMut<[$t]>,
             ) -> SparseIterativeStatus {
@@ -1106,7 +1106,7 @@ mod tests {
         let exp_sol = vec![0.1, 0.2, 0.3];
 
         let lsmr = SparseIterativeMethod::lsmr();
-        lsmr.solve(a, b, x.as_mut_slice());
+        lsmr.solve(&a, b, x.as_mut_slice());
 
         for (actual, expected) in x.iter().zip(exp_sol.iter()) {
             assert!((*actual - *expected).abs() < 0.001);
