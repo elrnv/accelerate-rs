@@ -767,19 +767,123 @@ impl From<SparseGMRESOptions> for ffi::SparseGMRESOptions {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub enum SparseLSMRConvergenceTest {
+    /// Use accelerate's default convergence test:
+    ///   || A^Tb - A^TAx ||_2 < rtol * || A^Tb - A^TAx_0 ||_2 + atol.
+    Default,
+    /// Use the convergence test of Fong and Saunders:
+    ///   Either `|| b-Ax ||_2 < btol * || b ||_2 + atol * || A ||_2 || x ||_2`
+    ///   or     `|| A^T (b-Ax) ||_2 < atol * || A ||_2 * || A-bx ||_2`
+    ///   or     Estimated condition of matrix >= conditionLimit                */
+    FongSaunders,
+}
+
+impl Default for SparseLSMRConvergenceTest {
+    fn default() -> Self {
+        SparseLSMRConvergenceTest::Default
+    }
+}
+
+impl From<ffi::SparseLSMRConvergenceTest_t> for SparseLSMRConvergenceTest {
+    fn from(ct: ffi::SparseLSMRConvergenceTest_t) -> Self {
+        match ct {
+            c if c == ffi::SparseLSMRCTFongSaunders as i32 => {
+                SparseLSMRConvergenceTest::FongSaunders
+            }
+            _ => SparseLSMRConvergenceTest::Default,
+        }
+    }
+}
+
+impl Into<ffi::SparseLSMRConvergenceTest_t> for SparseLSMRConvergenceTest {
+    fn into(self) -> ffi::SparseLSMRConvergenceTest_t {
+        (match self {
+            SparseLSMRConvergenceTest::FongSaunders => ffi::SparseLSMRCTFongSaunders,
+            SparseLSMRConvergenceTest::Default => ffi::SparseLSMRCTDefault,
+        }) as i32
+    }
+}
+
+#[derive(Debug, Copy, Clone, Default)]
 pub struct SparseLSMROptions {
-    options: ffi::SparseLSMROptions,
+    /// Damping parameter, if non-zero the actual problem solved is
+    ///       min_x || Ax-b ||_2 + lambda || x ||_2.
+    /// Using damping can often allow the iteration to converge on ill-conditioned
+    /// systems.
+    lambda: f64,
+    /// Number of vectors used for local orthagonalization.
+    /// If nvec<=0, no orthagonalization is performed.
+    nvec: u32,
+    /// Which convergence test to use. See definition of
+    /// SparseLSMRConvergenceTest_t for further information.
+    convergence_test: SparseLSMRConvergenceTest,
+    /// Either absolute tolerance (default test) or A tolerance (Fong-Saunders
+    /// test). In the Fong and Saunders case, it should hold an estimate of the
+    /// relative error in the data defining the matrix A. For example, if A is
+    /// accurate to about 6 digits, set atol = 1.0e-6. In the Fong and Saunders
+    /// case, if atol is 0.0, it is treated as machine epsilon. If using the
+    /// default test, a value of 0.0 is treated as 0.0.
+    atol: f64,
+    /// Relative convergence tolerance (default test only).
+    /// If rtol = 0.0, default value of sqrt(epsilon) is used.
+    /// If negative, rtol is treated as 0.0 (default is not used).
+    rtol: f64,
+    /// b tolerance (Fong-Saunders test only). It should hold an estimate of the
+    /// relative error in the data defining the rhs b. For example, if b is
+    /// accurate to about 6 digits, set btol = 1.0e-6. If btol is zero, it
+    /// is treated as machine epsilon.
+    btol: f64,
+    /// Condition number limit (Fong-Saunders test). Iterations will be terminated
+    /// if a computed estimate of cond(Abar) exceeds this value. This is intended
+    /// to prevent certain small or zero singular values of A or Abar from coming
+    /// into effect and causing unwanted growth in the computed solution.
+    /// `condition_limit` and `lambda` may be used separately or together to regularize
+    /// ill-conditioned systems.
+    /// Normally, conlim should be in the range 1000 to 1/eps.
+    /// Suggested value:
+    /// conlim = 1/(100*eps)  for compatible systems,
+    /// conlim = 1/(10*sqrt(eps)) for least squares.
+    /// If `condition_limit` is 0.0, it is treated as 1/eps.
+    condition_limit: f64,
+    /// Maximum number of iterations to perform. If 0, the default value of 4n
+    /// is used.
+    /// However, if a good preconditioner is available and/or the matrix is well
+    /// conditioned such that singular values are clustered, a value of n/2 may
+    /// be more approriate.
+    max_iterations: u32,
 }
 
 impl From<ffi::SparseLSMROptions> for SparseLSMROptions {
     fn from(options: ffi::SparseLSMROptions) -> Self {
-        Self { options }
+        dbg!(options);
+        Self {
+            lambda: options.lambda,
+            nvec: options.nvec as u32,
+            convergence_test: options.convergenceTest.into(),
+            atol: options.atol,
+            rtol: options.rtol,
+            btol: options.btol,
+            condition_limit: options.conditionLimit,
+            max_iterations: options.maxIterations as u32,
+        }
     }
 }
 
 impl From<SparseLSMROptions> for ffi::SparseLSMROptions {
     fn from(other: SparseLSMROptions) -> Self {
-        other.options
+        dbg!(other);
+        ffi::SparseLSMROptions {
+            lambda: other.lambda,
+            nvec: other.nvec as i32,
+            convergenceTest: other.convergence_test.into(),
+            atol: other.atol,
+            rtol: other.rtol,
+            btol: other.btol,
+            conditionLimit: other.condition_limit,
+            maxIterations: other.max_iterations as i32,
+            reportError: None,
+            reportStatus: None,
+        }
     }
 }
 
@@ -855,10 +959,16 @@ impl SparseIterativeMethod {
 
 pub trait IterativeSolve<T, M> {
     fn solve(&self, a: M, b: impl AsMut<[T]>, x: impl AsMut<[T]>) -> SparseIterativeStatus;
+    fn solve_op(
+        &self,
+        op: impl Fn(bool, bool, &[T], &mut [T]),
+        b: impl AsMut<[T]>,
+        x: impl AsMut<[T]>,
+    ) -> SparseIterativeStatus;
 }
 
 macro_rules! impl_iterative_solve {
-    ($t:ident, $solve:ident, $solve_op:ident, $dense_vec:ident, $(,)?) => {
+    ($t:ident, $opp:ident, $solve:ident, $solve_op:ident, $dense_vec:ident, $(,)?) => {
         impl<'a> IterativeSolve<$t, SparseMatrix<'a, $t>> for SparseIterativeMethod {
             fn solve(
                 &self,
@@ -878,18 +988,51 @@ macro_rules! impl_iterative_solve {
                 };
                 unsafe { ffi::$solve(self.method, a.mtx, b, x) }.into()
             }
+            fn solve_op(
+                &self,
+                op: impl Fn(bool, bool, &[$t], &mut [$t]),
+                mut b: impl AsMut<[$t]>,
+                mut x: impl AsMut<[$t]>,
+            ) -> SparseIterativeStatus {
+                let b = b.as_mut();
+                let b = ffi::$dense_vec {
+                    count: i32::try_from(b.len()).unwrap(),
+                    data: b.as_mut_ptr(),
+                };
+                let x = x.as_mut();
+                let x = ffi::$dense_vec {
+                    count: i32::try_from(x.len()).unwrap(),
+                    data: x.as_mut_ptr(),
+                };
+
+                let ffi_op = move |accumulate: bool,
+                                   trans: ffi::CBLAS_TRANSPOSE,
+                                   x: ffi::$dense_vec,
+                                   y: ffi::$dense_vec| {
+                    let x = unsafe { std::slice::from_raw_parts(x.data, x.count.max(0) as usize) };
+                    let y =
+                        unsafe { std::slice::from_raw_parts_mut(y.data, y.count.max(0) as usize) };
+                    op(accumulate, trans == ffi::CBLAS_TRANSPOSE_CblasTrans, x, y);
+                };
+
+                let ffi_op_block = ffi::ConcreteBlock::new(ffi_op);
+                let status = unsafe { ffi::$solve_op(self.method, &*ffi_op_block, b, x) }.into();
+                status
+            }
         }
     };
 }
 
 impl_iterative_solve!(
     f32,
+    ffi_oppf32,
     SparseSolveIterative_Float,
     SparseSolveIterativeOp_Float,
     DenseVector_Float,
 );
 impl_iterative_solve!(
     f64,
+    ffi_oppf64,
     SparseSolveIterative_Double,
     SparseSolveIterativeOp_Double,
     DenseVector_Double,
@@ -961,12 +1104,56 @@ mod tests {
 
         // Expected solution
         let exp_sol = vec![0.1, 0.2, 0.3];
-        for (actual, expected) in x.iter().zip(exp_sol.iter()) {
-            dbg!(*actual, *expected);
-        }
 
         let lsmr = SparseIterativeMethod::lsmr();
         lsmr.solve(a, b, x.as_mut_slice());
+
+        for (actual, expected) in x.iter().zip(exp_sol.iter()) {
+            assert!((*actual - *expected).abs() < 0.001);
+        }
+    }
+
+    #[test]
+    fn iterative_solve_op() {
+        // Righ-hand side.
+        let b = vec![1.200, 1.013, 0.205, -0.172];
+
+        // Vector of unknowns.
+        let mut x = vec![0.0; 3];
+
+        // Expected solution
+        let exp_sol = vec![0.1, 0.2, 0.3];
+
+        // In practice this would be described by some sparse matrix.
+        let mtx = [
+            [2.0, 1.0, 0.0],
+            [-0.2, 3.2, 1.4],
+            [0.0, -0.1, 0.5],
+            [2.5, 1.1, 0.0],
+        ];
+
+        // Define the product operator.
+        let op = |accumulate: bool, transpose: bool, x: &[f64], y: &mut [f64]| {
+            if !accumulate {
+                y.iter_mut().for_each(|a| *a = 0.0);
+            }
+            if transpose {
+                for j in 0..4 {
+                    for i in 0..3 {
+                        y[i] += mtx[j][i] * x[j];
+                    }
+                }
+            } else {
+                for j in 0..4 {
+                    for i in 0..3 {
+                        y[j] += mtx[j][i] * x[i];
+                    }
+                }
+            }
+        };
+
+        let lsmr = SparseIterativeMethod::lsmr();
+        dbg!(lsmr.solve_op(op, b, x.as_mut_slice()));
 
         for (actual, expected) in x.iter().zip(exp_sol.iter()) {
             assert!((*actual - *expected).abs() < 0.001);
