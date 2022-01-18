@@ -164,7 +164,6 @@ void SparseSolveWS_Float(SparseOpaqueFactorization_Float Factored, DenseVector_F
     SparseSolve(Factored, x, b, workspace);
 }
 
-
 SparseOpaqueSymbolicFactorization SparseFactorSymbolic(SparseFactorization_t type,
   SparseMatrixStructure Matrix) {
 
@@ -250,4 +249,164 @@ void SparseCleanupOpaquePreconditioner_Double(SparseOpaquePreconditioner_Double 
 }
 void SparseCleanupOpaquePreconditioner_Float(SparseOpaquePreconditioner_Float Preconditioner) {
     SparseCleanup(Preconditioner);
+}
+
+/**** Iterative Solvers *******************************************************/
+
+/**** Iterative Method Factory Functions **************************************/
+
+SparseIterativeMethod SparseConjugateGradientDefault(void) {
+    return SparseConjugateGradient();
+}
+
+SparseIterativeMethod SparseConjugateGradientOpt(SparseCGOptions options) {
+    return SparseConjugateGradient(options);
+}
+
+SparseIterativeMethod SparseGMRESDefault(void) {
+    return SparseGMRES();
+}
+
+SparseIterativeMethod SparseGMRESOpt(SparseGMRESOptions options) {
+    return SparseGMRES(options);
+}
+
+SparseIterativeMethod SparseLSMRDefault(void) {
+    return SparseLSMR();
+}
+
+SparseIterativeMethod SparseLSMROpt(SparseLSMROptions options) {
+    return SparseLSMR(options);
+}
+
+/**** Solve without preconditioner ********************************************/
+
+SparseIterativeStatus_t SparseSolveMatrixIterative_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseMatrix_Double B, DenseMatrix_Double X) {
+    return SparseSolve(method, A, B, X);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterative_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseMatrix_Float B, DenseMatrix_Float X) {
+    return SparseSolve(method, A, B, X);
+}
+
+SparseIterativeStatus_t SparseSolveIterative_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseVector_Double b, DenseVector_Double x) {
+    return SparseSolve(method, A, b, x);
+}
+
+SparseIterativeStatus_t SparseSolveIterative_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseVector_Float b, DenseVector_Float x) {
+    return SparseSolve(method, A, b, x);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterativeOp_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Double X, DenseMatrix_Double Y),
+  DenseMatrix_Double B, DenseMatrix_Double X) {
+    return SparseSolve(method, ApplyOperator, B, X);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterativeOp_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Float X, DenseMatrix_Float Y),
+  DenseMatrix_Float B, DenseMatrix_Float X) {
+    return SparseSolve(method, ApplyOperator, B, X);
+}
+
+SparseIterativeStatus_t SparseSolveIterativeOp_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Double x, DenseVector_Double y),
+  DenseVector_Double b, DenseVector_Double x) {
+    return SparseSolve(method, ApplyOperator, b, x);
+}
+
+SparseIterativeStatus_t SparseSolveIterativeOp_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Float x, DenseVector_Float y),
+  DenseVector_Float b, DenseVector_Float x) {
+    return SparseSolve(method, ApplyOperator, b, x);
+}
+
+/**** Solve with preconditioner ***********************************************/
+
+SparseIterativeStatus_t SparseSolveMatrixIterativePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseMatrix_Double B, DenseMatrix_Double X,
+  SparsePreconditioner_t Preconditioner) {
+    return SparseSolve(method, A, B, X, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterativePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseMatrix_Float B, DenseMatrix_Float X,
+  SparsePreconditioner_t Preconditioner) {
+    return SparseSolve(method, A, B, X, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveIterativePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseVector_Double b, DenseVector_Double x,
+  SparsePreconditioner_t Preconditioner) {
+    return SparseSolve(method, A, b, x, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveIterativePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseVector_Float b, DenseVector_Float x,
+  SparsePreconditioner_t Preconditioner) {
+    return SparseSolve(method, A, b, x, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpaquePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseMatrix_Double B, DenseMatrix_Double X,
+  SparseOpaquePreconditioner_Double Preconditioner) {
+    return SparseSolve(method, A, B, X, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpaquePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseMatrix_Float B, DenseMatrix_Float X,
+  SparseOpaquePreconditioner_Float Preconditioner) {
+    return SparseSolve(method, A, B, X, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveIterativeOpaquePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseVector_Double b, DenseVector_Double x,
+  SparseOpaquePreconditioner_Double Preconditioner) {
+    return SparseSolve(method, A, b, x, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveIterativeOpaquePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseVector_Float b, DenseVector_Float x,
+  SparseOpaquePreconditioner_Float Preconditioner) {
+    return SparseSolve(method, A, b, x, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpOpaquePrecond_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Double X, DenseMatrix_Double Y),
+  DenseMatrix_Double B, DenseMatrix_Double X,
+  SparseOpaquePreconditioner_Double Preconditioner) {
+    return SparseSolve(method, ApplyOperator, B, X, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpOpaquePrecond_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Float X, DenseMatrix_Float Y),
+  DenseMatrix_Float B, DenseMatrix_Float X,
+  SparseOpaquePreconditioner_Float Preconditioner) {
+    return SparseSolve(method, ApplyOperator, B, X, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveIterativeOpOpaquePrecond_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Double x, DenseVector_Double y),
+  DenseVector_Double b, DenseVector_Double x,
+  SparseOpaquePreconditioner_Double Preconditioner) {
+    return SparseSolve(method, ApplyOperator, b, x, Preconditioner);
+}
+
+SparseIterativeStatus_t SparseSolveIterativeOpOpaquePrecond_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Float x, DenseVector_Float y),
+  DenseVector_Float b, DenseVector_Float x,
+  SparseOpaquePreconditioner_Float Preconditioner) {
+    return SparseSolve(method, ApplyOperator, b, x, Preconditioner);
 }

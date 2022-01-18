@@ -1045,6 +1045,517 @@ void SparseCleanupSparseMatrix_Float(SparseMatrix_Float toFree);
 void SparseCleanupOpaquePreconditioner_Double(SparseOpaquePreconditioner_Double Preconditioner);
 void SparseCleanupOpaquePreconditioner_Float(SparseOpaquePreconditioner_Float Preconditioner);
 
+/**** Iterative Solvers *******************************************************/
+
+/**** Iterative Method Factory Functions **************************************/
+
+/*! @abstract Return a Conjugate Gradient Method with default options.        */
+SparseIterativeMethod SparseConjugateGradientDefault(void);
+
+/*! @abstract Return a Conjugate Gradient Method with specified options.
+ *
+ *  @param options Options for conjugate gradient method.                     */
+SparseIterativeMethod SparseConjugateGradientOpt(SparseCGOptions options);
+
+/*! @abstract Return a GMRES Method with default options.                     */
+extern SparseIterativeMethod SparseGMRESDefault(void);
+
+/*! @abstract Return a GMRES Method with specified options.
+ *
+ *  @param options Options for GMRES method.                                  */
+SparseIterativeMethod SparseGMRESOpt(SparseGMRESOptions options);
+
+/*! @abstract Return a LSMR Method with default options.                      */
+SparseIterativeMethod SparseLSMRDefault(void);
+
+/*! @abstract Return a LSMR Method with specified options
+ *
+ *  @param options Options for LSMR method.                                   */
+SparseIterativeMethod SparseLSMROpt(SparseLSMROptions options);
+
+/**** Solve without preconditioner ********************************************/
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.                */
+SparseIterativeStatus_t SparseSolveMatrixIterative_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseMatrix_Double B, DenseMatrix_Double X);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.                */
+SparseIterativeStatus_t SparseSolveMatrixIterative_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseMatrix_Float B, DenseMatrix_Float X);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param b The right-hand side b to solve for. If A has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.                                                       */
+SparseIterativeStatus_t SparseSolveIterative_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseVector_Double b, DenseVector_Double x);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param b The right-hand side b to solve for. If A has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.                                                       */
+SparseIterativeStatus_t SparseSolveIterative_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseVector_Float b, DenseVector_Float x);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, X, Y)
+ *             should perform the operation Y = op(A)X if accumulate is false,
+ *             or Y += op(A)X if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform Y += op(A)X (if
+ *            true) or Y = op(A)X (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param X The matrix to multiply.
+ *    \@param Y The matrix in which to accumulate or store the result.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.                */
+SparseIterativeStatus_t SparseSolveMatrixIterativeOp_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Double X, DenseMatrix_Double Y),
+  DenseMatrix_Double B, DenseMatrix_Double X);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, X, Y)
+ *             should perform the operation Y = op(A)X if accumulate is false,
+ *             or Y += op(A)X if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform Y += op(A)X (if
+ *            true) or Y = op(A)X (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param X The matrix to multiply.
+ *    \@param Y The matrix in which to accumulate or store the result.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.                */
+SparseIterativeStatus_t SparseSolveMatrixIterativeOp_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Float X, DenseMatrix_Float Y),
+  DenseMatrix_Float B, DenseMatrix_Float X);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, x, y)
+ *             should perform the operation y = op(A)x if accumulate is false,
+ *             or y += op(A)x if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform y += op(A)x (if
+ *            true) or y = op(A)x (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param x The vector to multiply.
+ *    \@param y The vector in which to accumulate or store the result.
+ *
+ *  @param b The right-hand side b to solve for. If a has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.                                                       */
+SparseIterativeStatus_t SparseSolveIterativeOp_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Double x, DenseVector_Double y),
+        DenseVector_Double b, DenseVector_Double x);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, x, y)
+ *             should perform the operation y = op(A)x if accumulate is false,
+ *             or y += op(A)x if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform y += op(A)x (if
+ *            true) or y = op(A)x (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param x The vector to multiply.
+ *    \@param y The vector in which to accumulate or store the result.
+ *
+ *  @param b The right-hand side b to solve for. If a has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.                                                       */
+SparseIterativeStatus_t SparseSolveIterativeOp_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Float x, DenseVector_Float y),
+  DenseVector_Float b, DenseVector_Float x);
+
+/**** Solve with preconditioner ***********************************************/
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.
+ *
+ *  @param Preconditioner Type of preconditioner to create and apply.         */
+SparseIterativeStatus_t SparseSolveMatrixIterativePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseMatrix_Double B, DenseMatrix_Double X,
+  SparsePreconditioner_t Preconditioner);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.
+ *
+ *  @param Preconditioner Type of preconditioner to create and apply.         */
+SparseIterativeStatus_t SparseSolveMatrixIterativePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseMatrix_Float B, DenseMatrix_Float X,
+  SparsePreconditioner_t Preconditioner);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param b The right-hand side b to solve for. If A has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.
+ *
+ *  @param Preconditioner Type of preconditioner to create and apply.         */
+SparseIterativeStatus_t SparseSolveIterativePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseVector_Double b, DenseVector_Double x,
+  SparsePreconditioner_t Preconditioner);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param b The right-hand side b to solve for. If A has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.
+ *
+ *  @param Preconditioner Type of preconditioner to create and apply.         */
+SparseIterativeStatus_t SparseSolveIterativePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseVector_Float b, DenseVector_Float x,
+  SparsePreconditioner_t Preconditioner);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.
+ *
+ *  @parameter Preconditioner The preconditioner to apply.                    */
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpaquePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseMatrix_Double B, DenseMatrix_Double X,
+  SparseOpaquePreconditioner_Double Preconditioner);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.
+ *
+ *  @parameter Preconditioner The preconditioner to apply.                    */
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpaquePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseMatrix_Float B, DenseMatrix_Float X,
+  SparseOpaquePreconditioner_Float Preconditioner);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param b The right-hand side b to solve for. If A has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.
+ *
+ *  @param Preconditioner The preconditioner to apply.                        */
+SparseIterativeStatus_t SparseSolveIterativeOpaquePrecond_Double(SparseIterativeMethod method,
+  SparseMatrix_Double A, DenseVector_Double b, DenseVector_Double x,
+  SparseOpaquePreconditioner_Double Preconditioner);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  @param A (input) The matrix A to solve the system for. Only used for
+ *         multiplication by A or A^T.
+ *
+ *  @param b The right-hand side b to solve for. If A has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.
+ *
+ *  @param Preconditioner The preconditioner to apply.                        */
+SparseIterativeStatus_t SparseSolveIterativeOpaquePrecond_Float(SparseIterativeMethod method,
+  SparseMatrix_Float A, DenseVector_Float b, DenseVector_Float x,
+  SparseOpaquePreconditioner_Float Preconditioner);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, X, Y)
+ *             should perform the operation Y = op(A)X if accumulate is false,
+ *             or Y += op(A)X if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform Y += op(A)X (if
+ *            true) or Y = op(A)X (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param X The matrix to multiply.
+ *    \@param Y The matrix in which to accumulate or store the result.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.
+ *
+ *  @param Preconditioner (input) The preconditioner to use.                  */
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpOpaquePrecond_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Double X, DenseMatrix_Double Y),
+  DenseMatrix_Double B, DenseMatrix_Double X,
+  SparseOpaquePreconditioner_Double Preconditioner);
+
+/*! @abstract Solve AX=B using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, X, Y)
+ *             should perform the operation Y = op(A)X if accumulate is false,
+ *             or Y += op(A)X if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform Y += op(A)X (if
+ *            true) or Y = op(A)X (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param X The matrix to multiply.
+ *    \@param Y The matrix in which to accumulate or store the result.
+ *
+ *  @param B The right-hand sides B to solve for. If A has dimension m x n, then
+ *         B must have dimension m x nrhs, where nrhs is the number of
+ *         right-hand sides to find solutions for.
+ *
+ *  @param X On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, and B has dimension m x nrhs, then X must have
+ *         dimension n x nrhs. If no good initial estimate is available, user
+ *         should set the initial guess to be the zero vector.
+ *
+ *  @param Preconditioner (input) The preconditioner to use.                  */
+SparseIterativeStatus_t SparseSolveMatrixIterativeOpOpaquePrecond_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseMatrix_Float X, DenseMatrix_Float Y),
+  DenseMatrix_Float B, DenseMatrix_Float X,
+  SparseOpaquePreconditioner_Float Preconditioner);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, x, y)
+ *             should perform the operation y = op(A)x if accumulate is false,
+ *             or y += op(A)x if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform y += op(A)x (if
+ *            true) or y = op(A)x (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param x The vector to multiply.
+ *    \@param y The vector in which to accumulate or store the result.
+ *
+ *  @param b The right-hand side b to solve for. If a has dimension m x n, then
+ *         b must have length m.
+ *
+ *  @param x On entry, initial guess for solution, on return the solution. If A
+ *         has dimension m x n, then x must have length n. If no good initial
+ *         estimate is available, user should set the initial guess to be the
+ *         zero vector.
+ *
+ *  @param Preconditioner (input) The preconditioner to use.                  */
+SparseIterativeStatus_t SparseSolveIterativeOpOpaquePrecond_Double(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Double x, DenseVector_Double y),
+  DenseVector_Double b, DenseVector_Double x,
+  SparseOpaquePreconditioner_Double Preconditioner);
+
+/*! @abstract Solve Ax=b using the specified iterative method.
+ *
+ *  @param method (input) Iterative method specification, eg return value of
+ *         SparseConjugateGradient().
+ *
+ *  \@callback ApplyOperator (block) ApplyOperator(accumulate, trans, x, y)
+ *             should perform the operation y = op(A)x if accumulate is false,
+ *             or y += op(A)x if accumulate is true.
+ *    \@param accumulate (input) Indicates whether to perform y += op(A)x (if
+ *            true) or y = op(A)x (if false).
+ *    \@param trans (input) Indicates whether op(A) is the application of A
+ *            (trans=CblasNoTrans) or A^T (trans=CblasTrans).
+ *    \@param x The vector to multiply.
+ *    \@param y The vector in which to accumulate or store the result.
+ *
+ *  \@param b The right-hand side b to solve for. If a has dimension m x n, then
+ *          b must have length m.
+ *
+ *  \@param x On entry, initial guess for solution, on return the solution. If A
+ *          has dimension m x n, then x must have length n. If no good initial
+ *          estimate is available, user should set the initial guess to be the
+ *          zero vector.
+ *
+ *  @param Preconditioner (input) The preconditioner to use.                  */
+SparseIterativeStatus_t SparseSolveIterativeOpOpaquePrecond_Float(SparseIterativeMethod method,
+  void (^_Nonnull ApplyOperator)(bool accumulate, enum CBLAS_TRANSPOSE trans,
+  DenseVector_Float x, DenseVector_Float y),
+  DenseVector_Float b, DenseVector_Float x,
+  SparseOpaquePreconditioner_Float Preconditioner);
+
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

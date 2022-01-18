@@ -246,32 +246,105 @@ impl From<SparseStatus> for ffi::SparseStatus_t {
     }
 }
 
+/// Trait defining scalar types supported by the Accelerate sparse module.
+pub trait SupportedScalar {
+    type FFISparseMatrixType: Copy;
+    type FFISparseFactorizationType: Copy;
+    unsafe fn cleanup_matrix(mtx: Self::FFISparseMatrixType);
+    unsafe fn cleanup_factorization(fact: Self::FFISparseFactorizationType);
+}
+
+impl SupportedScalar for f32 {
+    type FFISparseMatrixType = ffi::SparseMatrix_Float;
+    type FFISparseFactorizationType = ffi::SparseOpaqueFactorization_Float;
+    unsafe fn cleanup_matrix(mtx: Self::FFISparseMatrixType) {
+        if mtx.structure.attributes._allocatedBySparse() {
+            ffi::SparseCleanupSparseMatrix_Float(mtx);
+        }
+    }
+    unsafe fn cleanup_factorization(fact: Self::FFISparseFactorizationType) {
+        ffi::SparseCleanupOpaqueNumeric_Float(fact);
+    }
+}
+
+impl SupportedScalar for f64 {
+    type FFISparseMatrixType = ffi::SparseMatrix_Double;
+    type FFISparseFactorizationType = ffi::SparseOpaqueFactorization_Double;
+    unsafe fn cleanup_matrix(mtx: Self::FFISparseMatrixType) {
+        if mtx.structure.attributes._allocatedBySparse() {
+            ffi::SparseCleanupSparseMatrix_Double(mtx);
+        }
+    }
+    unsafe fn cleanup_factorization(fact: Self::FFISparseFactorizationType) {
+        ffi::SparseCleanupOpaqueNumeric_Double(fact);
+    }
+}
+
+/// A block CSC format sparse matrix.
+#[derive(Debug)]
+pub struct SparseMatrix<'a, T: SupportedScalar> {
+    mtx: T::FFISparseMatrixType,
+    phantom: PhantomData<&'a ()>,
+}
+
+// `SparseMatrix` cannot be copied or cloned.
+unsafe impl<'a, T: SupportedScalar> Send for SparseMatrix<'a, T> {}
+
+impl<'a, T: SupportedScalar> Drop for SparseMatrix<'a, T> {
+    fn drop(&mut self) {
+        // SAFETY: cleanup occurs only if the matrix was allocated internally.
+        unsafe {
+            T::cleanup_matrix(self.mtx);
+        }
+    }
+}
+
+pub type SparseMatrixF32<'a> = SparseMatrix<'a, f32>;
+pub type SparseMatrixF64<'a> = SparseMatrix<'a, f64>;
+
+/// A block CSC format sparse matrix.
+#[derive(Debug)]
+pub struct SparseFactorization<T: SupportedScalar> {
+    fact: T::FFISparseFactorizationType,
+}
+
+impl<T: SupportedScalar> Drop for SparseFactorization<T> {
+    fn drop(&mut self) {
+        unsafe {
+            T::cleanup_factorization(self.fact);
+        }
+    }
+}
+
+/// Factorization cannot be copied or cloned.
+unsafe impl<T: SupportedScalar> Send for SparseFactorization<T> {}
+
+impl From<ffi::SparseOpaqueFactorization_Float> for SparseFactorization<f32> {
+    fn from(f: ffi::SparseOpaqueFactorization_Float) -> Self {
+        Self { fact: f }
+    }
+}
+impl From<ffi::SparseOpaqueFactorization_Double> for SparseFactorization<f64> {
+    fn from(f: ffi::SparseOpaqueFactorization_Double) -> Self {
+        Self { fact: f }
+    }
+}
+
+impl From<SparseFactorization<f32>> for ffi::SparseOpaqueFactorization_Float {
+    fn from(f: SparseFactorization<f32>) -> ffi::SparseOpaqueFactorization_Float {
+        f.fact
+    }
+}
+
+impl From<SparseFactorization<f64>> for ffi::SparseOpaqueFactorization_Double {
+    fn from(f: SparseFactorization<f64>) -> ffi::SparseOpaqueFactorization_Double {
+        f.fact
+    }
+}
+
 macro_rules! impl_matrix {
-    ($t:ident, $mtx_rs:ident, $mtx_ffi:ident, $convert:ident, $factor:ident,
-     $factorization:ident, $factorization_ffi:ident, $factor_numeric:ident,
-     $solve:ident, $solve_in_place:ident, $dense_vec:ident, $dense_mtx:ident,
-     $cleanup_mtx:ident, $cleanup_fact:ident, $refactor:ident $(,)?) => {
-        /// A block CSC format sparse matrix.
-        #[derive(Debug)]
-        pub struct $mtx_rs<'a> {
-            mtx: ffi::$mtx_ffi,
-            phantom: PhantomData<&'a ()>,
-        }
-
-        /// Matrix cannot be copied or cloned.
-        unsafe impl<'a> Send for $mtx_rs<'a> {}
-
-        impl<'a> Drop for $mtx_rs<'a> {
-            fn drop(&mut self) {
-                if self.mtx.structure.attributes._allocatedBySparse() {
-                    unsafe {
-                        ffi::$cleanup_mtx(self.mtx);
-                    }
-                }
-            }
-        }
-
-        impl $mtx_rs<'static> {
+    ($t:ident, $mtx:ident, $convert:ident, $factor:ident, $factor_numeric:ident, $cleanup:ident $(,)?) => {
+        impl SparseMatrix<'static, $t> {
             /// Constructs a sparse matrix from data arrays.
             ///
             /// Out-of-range entries are dropped and duplicates are summed.
@@ -286,7 +359,7 @@ macro_rules! impl_matrix {
             ) -> Self {
                 let block_count = i64::try_from(values.len() / block_size as usize).unwrap();
 
-                $mtx_rs {
+                Self {
                     mtx: unsafe {
                         ffi::$convert(
                             num_rows,
@@ -304,7 +377,7 @@ macro_rules! impl_matrix {
             }
         }
 
-        impl<'a> $mtx_rs<'a> {
+        impl<'a> SparseMatrix<'a, $t> {
             /// Constructs a sparse BCSC matrix from the given raw indices, offsets and values.
             pub fn from_raw_parts(
                 num_rows: usize,
@@ -316,11 +389,16 @@ macro_rules! impl_matrix {
                 values: &mut [$t],
             ) -> Self {
                 Self {
-                    mtx: ffi::$mtx_ffi {
+                    mtx: ffi::$mtx {
                         // The attributes will be changed to reflect that this matrix structure and
                         // values are owned by the caller.
                         structure: SparseMatrixStructure::from_raw_parts(
-                            num_rows, num_cols, block_size, attributes.with_owned(false), indices, offsets,
+                            num_rows,
+                            num_cols,
+                            block_size,
+                            attributes.with_owned(false),
+                            indices,
+                            offsets,
                         )
                         .into(),
                         data: values.as_mut_ptr(),
@@ -328,7 +406,9 @@ macro_rules! impl_matrix {
                     phantom: PhantomData,
                 }
             }
+        }
 
+        impl<'a> SparseMatrix<'a, $t> {
             /// A mutable slice of all structurally non-zero entries in this matrix.
             ///
             /// This can be useful for updating the values of the matrix without changing the
@@ -367,62 +447,32 @@ macro_rules! impl_matrix {
                 sparse_matrix_structure_offsets(&self.mtx.structure)
             }
             /// Factor this matrix according to the given factorization type.
-            pub fn factor(&self, factorization_type: SparseFactorizationType) -> $factorization {
-                unsafe {
-                    ffi::$factor(
-                        factorization_type.into(),
-                        self.mtx,
-                    )
-                }
-                .into()
+            pub fn factor(
+                &self,
+                factorization_type: SparseFactorizationType,
+            ) -> SparseFactorization<$t> {
+                unsafe { ffi::$factor(factorization_type.into(), self.mtx) }.into()
             }
             /// Factor this matrix using the given symbolic factorization.
             pub fn factor_with(
                 &self,
                 factorization: &SparseSymbolicFactorization,
-            ) -> $factorization {
-                unsafe {
-                    ffi::$factor_numeric(
-                        factorization.factorization.clone(),
-                        self.mtx,
-                    )
-                }
-                .into()
+            ) -> SparseFactorization<$t> {
+                unsafe { ffi::$factor_numeric(factorization.factorization.clone(), self.mtx) }
+                    .into()
             }
             /// Returns a copy of this matrix structure without entries.
             pub fn structure(&self) -> SparseMatrixStructure {
                 self.mtx.structure.into()
             }
         }
-        #[derive(Debug)]
-        pub struct $factorization {
-            fact: ffi::$factorization_ffi,
-        }
+    };
+}
 
-        /// Factorization cannot be copied or cloned.
-        unsafe impl Send for $factorization {}
-
-        impl From<ffi::$factorization_ffi> for $factorization {
-            fn from(f: ffi::$factorization_ffi) -> $factorization {
-                $factorization {
-                    fact: f,
-                }
-            }
-        }
-        impl From<$factorization> for ffi::$factorization_ffi {
-            fn from(f: $factorization) -> ffi::$factorization_ffi {
-                f.fact
-            }
-        }
-        impl Drop for $factorization {
-            fn drop(&mut self) {
-                unsafe {
-                    ffi::$cleanup_fact(self.fact);
-                }
-            }
-        }
-
-        impl $factorization {
+macro_rules! impl_factorization {
+    ($t:ident, $solve:ident, $solve_in_place:ident, $dense_vec:ident, $dense_mtx:ident,
+     $cleanup:ident, $refactor:ident $(,)?) => {
+        impl SparseFactorization<$t> {
             /// Returns the status of this factorization state.
             pub fn status(&self) -> SparseStatus {
                 self.fact.status.into()
@@ -430,12 +480,16 @@ macro_rules! impl_matrix {
             /// Refactor the given matrix.
             ///
             /// The given matrix must have the exact same sparsity pattern as originally provided.
-            pub fn refactor(&mut self, mtx: &$mtx_rs) -> SparseStatus {
+            pub fn refactor<'a>(&mut self, mtx: SparseMatrix<'a, $t>) -> SparseStatus {
                 unsafe {
-                    ffi::$refactor(mtx.mtx, &mut self.fact as *mut ffi::$factorization_ffi);
+                    ffi::$refactor(
+                        mtx.mtx,
+                        &mut self.fact as *mut <$t as SupportedScalar>::FFISparseFactorizationType,
+                    );
                 }
                 self.status()
             }
+            /// Solve the system `Ax = b` where `xb` is `b` on the input and `x` on the output.
             pub fn solve_in_place(&self, mut xb: impl AsMut<[$t]>) -> SparseStatus {
                 let status = self.status();
                 if status != SparseStatus::Ok {
@@ -449,6 +503,7 @@ macro_rules! impl_matrix {
                 unsafe { ffi::$solve_in_place(self.fact, xb) }
                 self.status()
             }
+            /// Solve the system `Ax = b`.
             pub fn solve(&self, mut b: impl AsMut<[$t]>, mut x: impl AsMut<[$t]>) -> SparseStatus {
                 let status = self.status();
                 if status != SparseStatus::Ok {
@@ -473,36 +528,38 @@ macro_rules! impl_matrix {
 
 impl_matrix!(
     f32,
-    SparseMatrixF32,
     SparseMatrix_Float,
     SparseConvertFromCoordinate_Float,
     SparseFactor_Float,
-    SparseFactorizationF32,
-    SparseOpaqueFactorization_Float,
     SparseFactorNumeric_Float,
-    SparseSolve_Float,
-    SparseSolveInPlace_Float,
-    DenseVector_Float,
-    DenseMatrix_Float,
     SparseCleanupSparseMatrix_Float,
-    SparseCleanupOpaqueNumeric_Float,
-    SparseRefactor_Float,
 );
 
 impl_matrix!(
     f64,
-    SparseMatrixF64,
     SparseMatrix_Double,
     SparseConvertFromCoordinate_Double,
     SparseFactor_Double,
-    SparseFactorizationF64,
-    SparseOpaqueFactorization_Double,
     SparseFactorNumeric_Double,
+    SparseCleanupSparseMatrix_Double,
+);
+
+impl_factorization!(
+    f32,
+    SparseSolve_Float,
+    SparseSolveInPlace_Float,
+    DenseVector_Float,
+    DenseMatrix_Float,
+    SparseCleanupOpaqueNumeric_Float,
+    SparseRefactor_Float,
+);
+
+impl_factorization!(
+    f64,
     SparseSolve_Double,
     SparseSolveInPlace_Double,
     DenseVector_Double,
     DenseMatrix_Double,
-    SparseCleanupSparseMatrix_Double,
     SparseCleanupOpaqueNumeric_Double,
     SparseRefactor_Double,
 );
@@ -629,6 +686,215 @@ impl SparseSymbolicFactorization {
     }
 }
 
+/*
+ * Iterative method types and implementations.
+ */
+
+/// The status of an iterative linear solve.
+///
+/// This enum is returned by solves implemented in `SparseIterativeMethod`.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SparseIterativeStatus {
+    /// All solution vectors converged.
+    Converged,
+    /// One or more solutions failed to converge in the maximum number of iterations.
+    MaxIterations,
+    /// There was an error with one or more user-supplied parameters.
+    ParameterError,
+    /// Problem determined to be sufficiently ill conditioned convergence is unlikely.
+    IllConditioned,
+    /// Some internal failure occurred (e.g. memory allocation failed).
+    InternalError,
+}
+
+impl From<ffi::SparseIterativeStatus_t> for SparseIterativeStatus {
+    fn from(st: ffi::SparseIterativeStatus_t) -> Self {
+        match st {
+            ffi::SparseIterativeConverged => SparseIterativeStatus::Converged,
+            ffi::SparseIterativeMaxIterations => SparseIterativeStatus::MaxIterations,
+            ffi::SparseIterativeParameterError => SparseIterativeStatus::ParameterError,
+            ffi::SparseIterativeIllConditioned => SparseIterativeStatus::IllConditioned,
+            ffi::SparseIterativeInternalError => SparseIterativeStatus::InternalError,
+            _ => panic!("Invalid factorization type"),
+        }
+    }
+}
+
+impl From<SparseIterativeStatus> for ffi::SparseIterativeStatus_t {
+    fn from(st: SparseIterativeStatus) -> Self {
+        match st {
+            SparseIterativeStatus::Converged => ffi::SparseIterativeConverged,
+            SparseIterativeStatus::MaxIterations => ffi::SparseIterativeMaxIterations,
+            SparseIterativeStatus::ParameterError => ffi::SparseIterativeParameterError,
+            SparseIterativeStatus::IllConditioned => ffi::SparseIterativeIllConditioned,
+            SparseIterativeStatus::InternalError => ffi::SparseIterativeInternalError,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct SparseCGOptions {
+    options: ffi::SparseCGOptions,
+}
+
+impl From<ffi::SparseCGOptions> for SparseCGOptions {
+    fn from(options: ffi::SparseCGOptions) -> Self {
+        Self { options }
+    }
+}
+
+impl From<SparseCGOptions> for ffi::SparseCGOptions {
+    fn from(other: SparseCGOptions) -> Self {
+        other.options
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct SparseGMRESOptions {
+    options: ffi::SparseGMRESOptions,
+}
+
+impl From<ffi::SparseGMRESOptions> for SparseGMRESOptions {
+    fn from(options: ffi::SparseGMRESOptions) -> Self {
+        Self { options }
+    }
+}
+
+impl From<SparseGMRESOptions> for ffi::SparseGMRESOptions {
+    fn from(other: SparseGMRESOptions) -> Self {
+        other.options
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct SparseLSMROptions {
+    options: ffi::SparseLSMROptions,
+}
+
+impl From<ffi::SparseLSMROptions> for SparseLSMROptions {
+    fn from(options: ffi::SparseLSMROptions) -> Self {
+        Self { options }
+    }
+}
+
+impl From<SparseLSMROptions> for ffi::SparseLSMROptions {
+    fn from(other: SparseLSMROptions) -> Self {
+        other.options
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct SparseIterativeMethod {
+    method: ffi::SparseIterativeMethod,
+}
+
+impl From<ffi::SparseIterativeMethod> for SparseIterativeMethod {
+    fn from(method: ffi::SparseIterativeMethod) -> Self {
+        Self { method }
+    }
+}
+
+impl From<SparseIterativeMethod> for ffi::SparseIterativeMethod {
+    fn from(other: SparseIterativeMethod) -> Self {
+        other.method
+    }
+}
+
+impl SparseIterativeMethod {
+    /*
+     * Constructors
+     */
+
+    /// Constructs a new Conjugate Gradient iterative method with default options.
+    pub fn cg() -> Self {
+        SparseIterativeMethod {
+            // SAFETY: ffi function constructs a Copy type.
+            method: unsafe { ffi::SparseConjugateGradientDefault() },
+        }
+    }
+    /// Constructs a new Conjugate Gradient iterative method with the given options.
+    pub fn cg_with_options(options: SparseCGOptions) -> Self {
+        SparseIterativeMethod {
+            // SAFETY: ffi function constructs a Copy type.
+            method: unsafe { ffi::SparseConjugateGradientOpt(options.into()) },
+        }
+    }
+    /// Constructs a new GMRES iterative method with default options.
+    pub fn gmres() -> Self {
+        SparseIterativeMethod {
+            // SAFETY: ffi function constructs a Copy type.
+            method: unsafe { ffi::SparseGMRESDefault() },
+        }
+    }
+    /// Constructs a new GMRES iterative method with the given options.
+    pub fn gmres_with_options(options: SparseGMRESOptions) -> Self {
+        SparseIterativeMethod {
+            // SAFETY: ffi function constructs a Copy type.
+            method: unsafe { ffi::SparseGMRESOpt(options.into()) },
+        }
+    }
+    /// Constructs a new LSMR iterative method with default options.
+    pub fn lsmr() -> Self {
+        SparseIterativeMethod {
+            // SAFETY: ffi function constructs a Copy type.
+            method: unsafe { ffi::SparseLSMRDefault() },
+        }
+    }
+    /// Constructs a new LSMR iterative method with the given options.
+    pub fn lsmr_with_options(options: SparseLSMROptions) -> Self {
+        SparseIterativeMethod {
+            // SAFETY: ffi function constructs a Copy type.
+            method: unsafe { ffi::SparseLSMROpt(options.into()) },
+        }
+    }
+}
+
+/*
+ * Solve functions
+ */
+
+pub trait IterativeSolve<T, M> {
+    fn solve(&self, a: M, b: impl AsMut<[T]>, x: impl AsMut<[T]>) -> SparseIterativeStatus;
+}
+
+macro_rules! impl_iterative_solve {
+    ($t:ident, $solve:ident, $solve_op:ident, $dense_vec:ident, $(,)?) => {
+        impl<'a> IterativeSolve<$t, SparseMatrix<'a, $t>> for SparseIterativeMethod {
+            fn solve(
+                &self,
+                a: SparseMatrix<'a, $t>,
+                mut b: impl AsMut<[$t]>,
+                mut x: impl AsMut<[$t]>,
+            ) -> SparseIterativeStatus {
+                let b = b.as_mut();
+                let b = ffi::$dense_vec {
+                    count: i32::try_from(b.len()).unwrap(),
+                    data: b.as_mut_ptr(),
+                };
+                let x = x.as_mut();
+                let x = ffi::$dense_vec {
+                    count: i32::try_from(x.len()).unwrap(),
+                    data: x.as_mut_ptr(),
+                };
+                unsafe { ffi::$solve(self.method, a.mtx, b, x) }.into()
+            }
+        }
+    };
+}
+
+impl_iterative_solve!(
+    f32,
+    SparseSolveIterative_Float,
+    SparseSolveIterativeOp_Float,
+    DenseVector_Float,
+);
+impl_iterative_solve!(
+    f64,
+    SparseSolveIterative_Double,
+    SparseSolveIterativeOp_Double,
+    DenseVector_Double,
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -669,6 +935,42 @@ mod tests {
         assert_eq!(a_raw.data(), a.data());
         assert_eq!(a_raw.indices(), a.indices());
         assert_eq!(a_raw.offsets(), a.offsets());
+    }
+
+    #[test]
+    fn iterative_solve() {
+        // Construct matrix `a` from raw parts.
+        let mut row_indices = vec![0, 1, 3, 0, 1, 2, 3, 1, 2];
+        let mut values = vec![2.0, -0.2, 2.5, 1.0, 3.2, -0.1, 1.1, 1.4, 0.5];
+        let mut column_starts = vec![0, 3, 7, 9];
+        let a = SparseMatrixF64::from_raw_parts(
+            4,
+            3,
+            1,
+            SparseAttributes::new(),
+            &mut row_indices,
+            &mut column_starts,
+            &mut values,
+        );
+
+        // Righ-hand side.
+        let b = vec![1.200, 1.013, 0.205, -0.172];
+
+        // Vector of unknowns.
+        let mut x = vec![0.0; 3];
+
+        // Expected solution
+        let exp_sol = vec![0.1, 0.2, 0.3];
+        for (actual, expected) in x.iter().zip(exp_sol.iter()) {
+            dbg!(*actual, *expected);
+        }
+
+        let lsmr = SparseIterativeMethod::lsmr();
+        lsmr.solve(a, b, x.as_mut_slice());
+
+        for (actual, expected) in x.iter().zip(exp_sol.iter()) {
+            assert!((*actual - *expected).abs() < 0.001);
+        }
     }
 
     #[test]
@@ -747,5 +1049,39 @@ mod tests {
         for (actual, expected) in b0_values.iter().zip(exp_sol0.iter()) {
             assert_eq!(*actual, *expected);
         }
+    }
+    #[test]
+    fn solve_singular() {
+        // [0 0 .]
+        // [. 0 .]
+        // [0 . 0]
+        let row_indices = vec![0, 1, 1, 2];
+        let col_indices = vec![2, 0, 2, 1];
+        let a0_values = vec![1.0f32, 0.0, 1.0, 1.0];
+
+        let a0 = SparseMatrixF32::from_coordinate(
+            3,
+            3,
+            1,
+            SparseAttributes::new(),
+            &row_indices,
+            &col_indices,
+            &a0_values,
+        );
+        assert_eq!(a0.data(), &[0.0f32, 1.0, 1.0, 1.0][..]);
+        assert_eq!(a0.indices(), &[1, 2, 0, 1][..]);
+        assert_eq!(a0.offsets(), &[0, 1, 2, 4][..]);
+
+        // Compute the symbolic factorization from the structure of either coefficient matrix.
+        let structure = a0.structure();
+        let symbolic_factorization = structure.symbolic_factor(SparseFactorizationType::QR);
+        dbg!(symbolic_factorization.status());
+        let factorization0 = a0.factor_with(&symbolic_factorization);
+        dbg!(factorization0.status());
+
+        let mut b0_values = vec![30.0f32, 35.0, 100.0];
+        let status = factorization0.solve_in_place(&mut b0_values);
+        dbg!(&status);
+        dbg!(&b0_values);
     }
 }
