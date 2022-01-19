@@ -1555,6 +1555,182 @@ SparseIterativeStatus_t SparseSolveIterativeOpOpaquePrecond_Float(SparseIterativ
   DenseVector_Float b, DenseVector_Float x,
   SparseOpaquePreconditioner_Float Preconditioner);
 
+/******************************************************************************
+ *  @group Matrix and Vector Operations (Sparse BLAS Wrappers)
+ ******************************************************************************/
+
+/**** Multiplication **********************************************************/
+
+/*! @abstract Performs the multiplication Y = AX for double values
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with their product.                               */
+void SparseMultiplyMatrix_Double(SparseMatrix_Double A, DenseMatrix_Double X, DenseMatrix_Double Y);
+
+/*! @abstract Performs the multiplication Y = AX for float values.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with their product.                               */
+void SparseMultiplyMatrix_Float(SparseMatrix_Float A, DenseMatrix_Float X, DenseMatrix_Float Y);
+
+/*! @abstract Performs the multiplication Y = alpha * AX for double values
+ *
+ *  @param alpha (input) scale to apply to the result.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with alpha * AX.                                  */
+void SparseMultiplyScalarMatrix_Double(double alpha, SparseMatrix_Double A, DenseMatrix_Double X, DenseMatrix_Double Y);
+
+/*! @abstract Performs the multiplication Y = alpha * AX for float values.
+ *
+ *  @param alpha (input) scale to apply to the result.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with alpha * AX.                                  */
+void SparseMultiplyScalarMatrix_Float(float alpha, SparseMatrix_Float A, DenseMatrix_Float X, DenseMatrix_Float Y);
+
+/*! @abstract Performs the multiplication y = Ax for double values
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiply_Double(SparseMatrix_Double A, DenseVector_Double x, DenseVector_Double y);
+
+/*! @abstract Performs the multiplication y = Ax for float values
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiply_Float(SparseMatrix_Float A, DenseVector_Float x, DenseVector_Float y);
+
+/*! @abstract Performs the multiplication y = alpha * Ax for double values
+ *
+ *  @param alpha (input) scale to apply to the result.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiplyScalar_Double(double alpha, SparseMatrix_Double A, DenseVector_Double x, DenseVector_Double y);
+
+/*! @abstract Performs the multiplication y = alpha * Ax for float values.
+ *
+ *  @param alpha (input) scale to apply to the result.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiplyScalar_Float(float alpha, SparseMatrix_Float A, DenseVector_Float x, DenseVector_Float y);
+
+/**** Multipy-Add *************************************************************/
+
+/*! @abstract Y += AX for double values
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with their product.                               */
+void SparseMultiplyAddMatrix_Double(SparseMatrix_Double A, DenseMatrix_Double X, DenseMatrix_Double Y);
+
+/*! @abstract Y += AX for float values.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with their product.                               */
+void SparseMultiplyAddMatrix_Float(SparseMatrix_Float A, DenseMatrix_Float X, DenseMatrix_Float Y);
+
+/*! @abstract Y += alpha * AX for double values
+ *
+ *  @param alpha (input) scale to apply to the product of A and X.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with alpha * AX.                                  */
+void SparseMultiplyAddScalarMatrix_Double(double alpha, SparseMatrix_Double A, DenseMatrix_Double X, DenseMatrix_Double Y);
+
+/*! @abstract Y += alpha * AX for float values.
+ *
+ *  @param alpha (input) scale to apply to the product of A and X.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param X (input) dense matrix. Inner dimensions of A and X must match.
+ *
+ *  @param Y (output) dense matrix. Dimensions must match the outer dimensions
+ *  of A and X. Overwritten with alpha * AX.                                  */
+void SparseMultiplyAddScalarMatrix_Float(float alpha, SparseMatrix_Float A, DenseMatrix_Float X, DenseMatrix_Float Y);
+
+/*! @abstract y += Ax for double values
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiplyAdd_Double(SparseMatrix_Double A, DenseVector_Double x, DenseVector_Double y);
+
+/*! @abstract y += Ax for float values.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiplyAdd_Float(SparseMatrix_Float A, DenseVector_Float x, DenseVector_Float y);
+
+/*! @abstract y += alpha * Ax for double values
+ *
+ *  @param alpha (input) scale to apply to the product of A and x.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiplyAddScalar_Double(double alpha, SparseMatrix_Double A, DenseVector_Double x, DenseVector_Double y);
+
+/*! @abstract y += alpha * Ax for float values.
+ *
+ *  @param alpha (input) scale to apply to the product of A and x.
+ *
+ *  @param A (input) sparse matrix.
+ *
+ *  @param x (input) dense vector.
+ *
+ *  @param y (output) dense vector.                                           */
+void SparseMultiplyAddScalar_Float(float alpha, SparseMatrix_Float A, DenseVector_Float x, DenseVector_Float y);
+
 
 #ifdef __cplusplus
 } // extern "C"

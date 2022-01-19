@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::marker::PhantomData;
+use std::ops::{Mul};
 
 use accelerate_sys as ffi;
 
@@ -288,6 +289,7 @@ impl From<SparseStatus> for ffi::SparseStatus_t {
 
 /// Trait defining scalar types supported by the Accelerate sparse module.
 pub trait SupportedScalar {
+    type FFIDenseVectorType: Copy;
     type FFISparseMatrixType: Copy;
     type FFISparseFactorizationType: Copy;
     unsafe fn cleanup_matrix(mtx: Self::FFISparseMatrixType);
@@ -295,6 +297,7 @@ pub trait SupportedScalar {
 }
 
 impl SupportedScalar for f32 {
+    type FFIDenseVectorType = ffi::DenseVector_Float;
     type FFISparseMatrixType = ffi::SparseMatrix_Float;
     type FFISparseFactorizationType = ffi::SparseOpaqueFactorization_Float;
     unsafe fn cleanup_matrix(mtx: Self::FFISparseMatrixType) {
@@ -308,6 +311,7 @@ impl SupportedScalar for f32 {
 }
 
 impl SupportedScalar for f64 {
+    type FFIDenseVectorType = ffi::DenseVector_Double;
     type FFISparseMatrixType = ffi::SparseMatrix_Double;
     type FFISparseFactorizationType = ffi::SparseOpaqueFactorization_Double;
     unsafe fn cleanup_matrix(mtx: Self::FFISparseMatrixType) {
@@ -383,7 +387,7 @@ impl From<SparseFactorization<f64>> for ffi::SparseOpaqueFactorization_Double {
 }
 
 macro_rules! impl_matrix {
-    ($t:ident, $mtx:ident, $convert:ident, $factor:ident, $factor_numeric:ident, $factor_numeric_opt:ident, $cleanup:ident $(,)?) => {
+    ($t:ident, $mtx:ident, $convert:ident, $factor:ident, $factor_numeric:ident, $factor_numeric_opt:ident, $mul:ident, $add_mul:ident, $dense_vec:ident, $cleanup:ident $(,)?) => {
         impl SparseMatrix<'static, $t> {
             /// Constructs a sparse matrix from data arrays.
             ///
@@ -448,7 +452,53 @@ macro_rules! impl_matrix {
             }
         }
 
+
+        impl<'a> Mul<&mut [$t]> for &SparseMatrix<'a, $t> {
+            type Output = Vec<$t>;
+            fn mul(self, rhs: &mut [$t]) -> Vec<$t> {
+                assert_eq!(self.mtx.structure.columnCount as usize, rhs.len());
+                let rhs = ffi::$dense_vec {
+                    count: i32::try_from(rhs.len()).unwrap(),
+                    data: rhs.as_mut_ptr(),
+                };
+                let mut out = vec![0.0; self.mtx.structure.rowCount as usize];
+                let ffi_out = ffi::$dense_vec {
+                    count: self.mtx.structure.rowCount,
+                    data: out.as_mut_ptr(),
+                };
+                unsafe { ffi::$add_mul(self.mtx, rhs, ffi_out) };
+                out
+            }
+        }
+
         impl<'a> SparseMatrix<'a, $t> {
+            /// Assign the product of `self` and `rhs` to `out`.
+            pub fn mul_vec(&self, rhs: &mut [$t], out: &mut [$t]) {
+                assert_eq!(self.mtx.structure.columnCount as usize, rhs.len());
+                let rhs = ffi::$dense_vec {
+                    count: i32::try_from(rhs.len()).unwrap(),
+                    data: rhs.as_mut_ptr(),
+                };
+                let ffi_out = ffi::$dense_vec {
+                    count: self.mtx.structure.rowCount,
+                    data: out.as_mut_ptr(),
+                };
+                unsafe { ffi::$mul(self.mtx, rhs, ffi_out) };
+            }
+            /// Add the product of `self` and `rhs` to `out`.
+            pub fn add_mul_vec(&self, rhs: &mut [$t], out: &mut [$t]) {
+                assert_eq!(self.mtx.structure.columnCount as usize, rhs.len());
+                let rhs = ffi::$dense_vec {
+                    count: i32::try_from(rhs.len()).unwrap(),
+                    data: rhs.as_mut_ptr(),
+                };
+                let ffi_out = ffi::$dense_vec {
+                    count: self.mtx.structure.rowCount,
+                    data: out.as_mut_ptr(),
+                };
+                unsafe { ffi::$add_mul(self.mtx, rhs, ffi_out) };
+            }
+
             /// A mutable slice of all structurally non-zero entries in this matrix.
             ///
             /// This can be useful for updating the values of the matrix without changing the
@@ -605,6 +655,9 @@ impl_matrix!(
     SparseFactor_Float,
     SparseFactorNumeric_Float,
     SparseFactorNumericOpt_Float,
+    SparseMultiply_Float,
+    SparseMultiplyAdd_Float,
+    DenseVector_Float,
     SparseCleanupSparseMatrix_Float,
 );
 
@@ -615,6 +668,9 @@ impl_matrix!(
     SparseFactor_Double,
     SparseFactorNumeric_Double,
     SparseFactorNumericOpt_Double,
+    SparseMultiply_Double,
+    SparseMultiplyAdd_Double,
+    DenseVector_Double,
     SparseCleanupSparseMatrix_Double,
 );
 
