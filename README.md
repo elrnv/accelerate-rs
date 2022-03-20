@@ -1,7 +1,8 @@
 # `accelerate-framework`
 
-Rust bindings for Apple's Accelerate framework.
+[![Build Status](https://github.com/elrnv/accelerate-framework/workflows/CI/badge.svg)](https://github.com/elrnv/accelerate-framework/actions)
 
+Rust bindings for Apple's Accelerate framework.
 
 # Status
 
