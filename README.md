@@ -1,6 +1,6 @@
 # `accelerate-framework`
 
-[![Build Status](https://github.com/elrnv/accelerate-framework/workflows/CI/badge.svg)](https://github.com/elrnv/accelerate-framework/actions)
+[![Build Status](https://github.com/elrnv/accelerate-rs/workflows/CI/badge.svg)](https://github.com/elrnv/accelerate-rs/actions)
 
 Rust bindings for Apple's Accelerate framework.
 
