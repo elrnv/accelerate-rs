@@ -43,21 +43,9 @@ void singular_test() {
 
     /// Factorize A using the symbolic factorization.
     auto factorization = SparseFactorNumeric_Float(symbolicFactorization, A);
-
-    std::vector<float> bValues{30, 35, 100};
-    {
-        auto xb = DenseVector_Float { 3, bValues.data() };
-        SparseSolveInPlace_Float(factorization, xb);
-
-        std::cout << "x = ";
-        for (int i = 0; i < 3; ++i) {
-            std::cout << bValues[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "status = " << factorization.status << std::endl;
     assert(factorization.status == SparseStatus_t::SparseMatrixIsSingular);
+
+    std::cout << "Done With SINGULAR test" << std::endl;
 }
 
 void direct_test() {
