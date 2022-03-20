@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Build the C API
+
 mkdir -p build
 pushd build
 
