@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Accelerate-framework crate
+    runs-on: macos-11
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build sys crate
+      working-directory: ./accelerate-sys
+      run: cargo build --verbose
+    - name: Run sys-crate tests
+      working-directory: ./accelerate-sys
+      run: cargo test --verbose
+    - name: Build crate
+      run: cargo build --verbose
+    - name: Run crate tests
+      run: cargo test --verbose
+      
+    - name: Run C API Tests
+      working-directory: ./accelerate-sys/capi
+      run: ./test.sh
