@@ -13,7 +13,7 @@ categories = ["os::macos-apis", "external-ffi-bindings"]
 edition = "2021"
 
 [dependencies]
-accelerate-sys = { path = "accelerate-sys" }
+accelerate-sys = { version = "0.2", path = "accelerate-sys" }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-apple-darwin", "aarch64-apple-ios"]
