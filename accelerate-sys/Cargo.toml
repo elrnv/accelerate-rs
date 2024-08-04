@@ -1,6 +1,6 @@
 [package]
 name = "accelerate-sys"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Egor Larionov <egor.larionov@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Apple `Accelerate.framework` low-level FFI bindings"
@@ -20,5 +20,5 @@ block = "0.1"
 targets = ["x86_64-apple-darwin", "aarch64-apple-ios"]
 
 [build-dependencies]
-bindgen = "0.59"
+bindgen = "0.69"
 cc = "1.0"

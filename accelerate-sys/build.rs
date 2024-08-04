@@ -46,7 +46,7 @@ fn main() {
         .layout_tests(false) // Currently causing UB (https://github.com/rust-lang/rust-bindgen/pull/2055)
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.
